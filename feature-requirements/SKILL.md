@@ -112,50 +112,99 @@ Prompt for the reviewer:
 
 ## Step 7: Produce feedback synthesis document
 
-When the reviewer returns, create `docs/features/<FEATURE>/requirements-feedback-1.md`.
+When the reviewer returns, produce the synthesis document in **both**
+markdown and HTML formats. Both contain the same items in the same
+three-tier structure (Needs your input / Feedback / Routine).
 
-Follow the format and triage guidance in
-`/home/nigel/.claude/skills/feature/feedback-template.md`. For each piece
-of reviewer feedback, **My take** should say whether you agree or disagree
-with reasoning — if agreeing, note how you'd address it; if disagreeing,
-explain why the requirement is correct as written.
+**Markdown** at `docs/features/<FEATURE>/requirements-feedback-<N>.md`
+(in the repo):
+- Follow the format and triage guidance in
+  `~/.claude/skills/feature/feedback-template.md`.
+
+**HTML** at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`
+(in the dev-store, not the repo):
+- Resolve `<PROJECT>` with `basename $(git rev-parse --show-toplevel)`.
+- Create parent dirs with `mkdir -p` if needed.
+- Use `~/.claude/skills/feature/feedback-template.html` as the basis.
+  Copy the CSS and JavaScript verbatim. Replace the example items with
+  the real ones. Update `<title>`, the `<h1>`, the subtitle, the meta
+  line, and the textarea total in the footer.
+- Update the JS `docId` constant to match the markdown filename
+  (e.g. `docs/features/<FEATURE>/requirements-feedback-1`).
+
+For each piece of reviewer feedback, **My take** should say whether you
+agree or disagree with reasoning — if agreeing, note how you'd address
+it; if disagreeing, explain why the requirement is correct as written.
 
 For feedback flagging plan-level detail in the requirements, the options are:
 1. **Accept and remove**: it's not load-bearing context
 2. **Move to Indicative implementation notes**: useful for planning, but doesn't belong in the requirements body (see the brief's "Requirements vs plan" section)
 3. **Disagree**: it's genuinely a requirement constraint, not a plan choice
 
-Tell the user the synthesis document is ready and ask them to fill in their
-thoughts on items in the **Needs your input** and **Feedback** sections.
+Tell the user both files are ready. Print the HTML's `file://` URL —
+that's the recommended surface for review. The markdown is the fallback
+for direct editing. The user picks one path; both are accepted in Step 7b.
 
 ## Step 7b: Integrate feedback
 
-Once the user indicates they are done, re-read both the synthesis document and the
-requirements document (to pick up any inline `note: ...` annotations they may have added
-directly). Integrate all feedback:
-- Blank "Your thoughts" = implicit agreement with your take — proceed accordingly
-- Filled "Your thoughts" = use the user's direction, noting any declined suggestions
-  inline near the relevant section
+The user can respond via either path:
 
-Before removing the synthesis document, capture decisions that would otherwise be lost:
-check user annotations for design principles, broader reasoning, or open questions beyond
-the specific decision. Distill these into a "Design notes" section in the feature's
-`requirements.md` (create it if it doesn't exist). Keep entries to one or two lines,
-cite the source review round. Ensure declined suggestions land in "Alternatives considered"
-or "Non-goals" with the user's reasoning. Don't duplicate what's already captured in the
-requirements text.
+**HTML path (recommended)** — the user clicks "Copy responses" in the
+HTML and pastes a JSON blob in chat. Format:
 
-Archive the synthesis document instead of deleting it (preserves a record
-for later analysis):
+```json
+{
+  "doc": "docs/features/<FEATURE>/requirements-feedback-<N>",
+  "responses": { "1": "user text or empty string", ... },
+  "routine_flags": { "19": "comment", ... }
+}
+```
+
+- Empty string in `responses` = agree with your take on that item.
+- Non-empty string = user direction; use it.
+- Items in `routine_flags` are routine items the user wants to discuss
+  — their comment explains why. Treat as needing your call.
+
+**Markdown path (fallback)** — the user edits the `.md` directly, fills
+in "Your thoughts" inline, and says "i'm done". Re-read the synthesis
+markdown and the requirements document (to pick up any inline
+`note: ...` annotations they may have added). Semantics:
+- Blank "Your thoughts" = implicit agreement
+- Filled "Your thoughts" = use their direction
+
+If the user provides a JSON blob, prefer it. If they say "i'm done"
+without pasting a blob, fall back to re-reading the markdown.
+
+Integrate all feedback into the requirements document, noting any
+declined suggestions inline near the relevant section.
+
+Before archiving the synthesis documents, capture decisions that would
+otherwise be lost: check user annotations for design principles, broader
+reasoning, or open questions beyond the specific decision. Distill these
+into a "Design notes" section in the feature's `requirements.md` (create
+it if it doesn't exist). Keep entries to one or two lines, cite the
+source review round. Ensure declined suggestions land in "Alternatives
+considered" or "Non-goals" with the user's reasoning. Don't duplicate
+what's already captured in the requirements text.
+
+Archive both files instead of deleting them (preserves a record for
+later analysis):
 
 ```bash
+# Markdown (in repo)
 mkdir -p docs/features/<FEATURE>/.feedback-archive
 mv docs/features/<FEATURE>/requirements-feedback-<N>.md \
    docs/features/<FEATURE>/.feedback-archive/
+
+# HTML (in dev-store)
+PROJECT=$(basename $(git rev-parse --show-toplevel))
+mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
+mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
+   ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/
 ```
 
-Ensure the archive directory is gitignored locally (not committed). Append
-the pattern to the repo's local exclude file if it's not already there:
+Ensure the markdown archive directory is gitignored locally (not committed).
+Append the pattern to the repo's local exclude file if it's not already there:
 
 ```bash
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)

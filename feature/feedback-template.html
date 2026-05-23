@@ -1,0 +1,540 @@
+<!--
+  Feedback Synthesis Template — HTML version.
+
+  This file is a reference template for generating HTML synthesis docs.
+  Skills that produce feedback synthesis docs (feature-requirements,
+  feature-review) copy this file's structure to create their output.
+
+  HOW TO USE (for the agent):
+    1. Copy this entire file as a starting point for the new HTML doc.
+    2. Replace the contents of <title>, <h1>, .subtitle, .meta with the
+       real feature/round info.
+    3. Replace the example items in each tier with the real items from
+       the reviewer's feedback. Use the patterns shown — each tier has
+       distinct visual treatment.
+    4. Keep all CSS and JavaScript verbatim.
+    5. Save to the dev-store path:
+       ~/.claude/feature-docs/<project>/<feature>/<phase>-feedback-<N>.html
+       where <project> = basename of the repo's git root.
+
+  The "Copy responses" button at the bottom packages the user's textarea
+  contents and routine-flag annotations as a JSON blob that the user
+  pastes back to the agent. The agent parses that JSON to drive feedback
+  integration.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="dark">
+<title>FEATURE — Phase Feedback Synthesis #N</title>
+<style>
+  :root {
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-muted: #1f1d1c;
+    --surface-warn: #3d2e0f;
+    --border: #44403c;
+    --border-warn: #92400e;
+    --accent: #f59e0b;
+    --text: #fafaf9;
+    --text-muted: #d6d3d1;
+    --text-faint: #a8a29e;
+    --code-bg: #1f1d1c;
+    --link: #93c5fd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 18px;
+    padding-bottom: 100px;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 28px 32px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.92em; }
+
+  header.doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+  header.doc-header .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  header.doc-header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  header.doc-header .subtitle { margin: 0; color: var(--text-muted); font-size: 1rem; }
+  header.doc-header .meta { margin: 8px 0 0; color: var(--text-faint); font-size: 0.875rem; }
+
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .view-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 7px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .view-btn.active { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .view-btn:hover:not(.active) { background: var(--surface-muted); color: var(--text); }
+
+  section.tier { margin-bottom: 36px; }
+  section.tier > h2 {
+    position: sticky;
+    top: 0;
+    margin: 0 0 16px;
+    padding: 12px 0;
+    background: var(--bg);
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  section.tier > h2 .count {
+    margin-left: 8px;
+    color: var(--text-faint);
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.9rem;
+  }
+
+  /* Top tier — needs input */
+  .tier-needs-input article.item {
+    background: var(--surface-warn);
+    border: 1px solid var(--border-warn);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  /* Middle tier — feedback */
+  .tier-feedback article.item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+
+  article.item header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  article.item .item-num {
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    min-width: 1.5em;
+  }
+  article.item h3 { margin: 0; font-size: 1.05rem; line-height: 1.35; }
+  article.item .detail { color: var(--text); margin: 0 0 10px; }
+  article.item .detail p { margin: 0 0 6px; }
+  article.item .detail p:last-child { margin-bottom: 0; }
+  article.item .my-take { color: var(--text); margin: 0 0 14px; }
+  article.item .my-take .label { font-weight: 600; }
+
+  .your-thoughts {
+    margin-top: 12px;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+  }
+  .your-thoughts label {
+    display: block;
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 50px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    background: var(--surface);
+    color: var(--text);
+    resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .your-thoughts textarea.has-content { border-color: var(--accent); background: #2a2118; }
+
+  /* Routine tier */
+  .tier-routine ul.routine-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .tier-routine li.routine-item {
+    display: grid;
+    grid-template-columns: 2em 1fr auto;
+    align-items: start;
+    gap: 12px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .tier-routine li.routine-item:first-child { border-top: none; }
+  .tier-routine .item-num { color: var(--text-faint); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tier-routine .body { color: var(--text); }
+  .tier-routine .flag-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .tier-routine .flag-btn:hover { background: var(--surface); color: var(--text); }
+  .tier-routine .flag-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .tier-routine .flag-input { grid-column: 2 / 4; margin-top: 6px; display: none; }
+  .tier-routine .flag-input.visible { display: block; }
+  .tier-routine .flag-input textarea { min-height: 40px; font-size: 0.9rem; }
+
+  /* Sticky footer */
+  footer.actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 32px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 20;
+  }
+  footer.actions .status { color: var(--text-muted); font-size: 0.9rem; }
+  footer.actions .status .count { font-weight: 600; color: var(--text); }
+
+  /* Slideshow nav (in footer) */
+  .slideshow-nav { display: none; }
+  body.view-mode-slideshow .slideshow-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .slideshow-nav button {
+    background: var(--surface-muted);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  .slideshow-nav button:hover:not(:disabled) { background: var(--border); }
+  .slideshow-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .slideshow-nav .progress {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    min-width: 220px;
+    text-align: center;
+  }
+  .slideshow-nav .progress #current-tier { color: var(--accent); font-weight: 600; }
+
+  /* Slideshow mode: hide everything except current item */
+  body.view-mode-slideshow section.tier > h2 { display: none; }
+  body.view-mode-slideshow section.tier-routine { display: none; }
+  body.view-mode-slideshow section.tier { margin-bottom: 0; }
+  body.view-mode-slideshow article.item { display: none; }
+  body.view-mode-slideshow article.item.slideshow-current {
+    display: block;
+    max-width: 780px;
+    margin: 48px auto !important;
+    padding: 32px 36px;
+  }
+  body.view-mode-slideshow article.item.slideshow-current h3 { font-size: 1.35rem; line-height: 1.35; }
+  body.view-mode-slideshow article.item.slideshow-current .item-num { font-size: 1.1rem; }
+  body.view-mode-slideshow article.item.slideshow-current .detail,
+  body.view-mode-slideshow article.item.slideshow-current .my-take { font-size: 1.02rem; }
+  body.view-mode-slideshow article.item.slideshow-current .your-thoughts textarea {
+    min-height: 100px;
+    font-size: 1rem;
+  }
+
+  footer.actions button.copy-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  footer.actions button.copy-btn:hover:not(:disabled) { filter: brightness(1.1); }
+  footer.actions button.copy-btn.copied { background: #4ade80; color: var(--bg); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!--
+  REPLACE: title, subtitle, and meta line.
+  The meta line is one sentence summarising the doc — typically item counts.
+-->
+<header class="doc-header">
+  <div class="header-content">
+    <div class="header-text">
+      <h1>FEATURE_NAME</h1>
+      <p class="subtitle">PHASE Feedback Synthesis #N</p>
+      <p class="meta">N items: X needing your input · Y feedback · Z routine</p>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="list">List</button>
+      <button class="view-btn" data-view="slideshow">Slideshow</button>
+    </div>
+  </div>
+</header>
+
+<!--
+  TOP TIER — Needs your input.
+  One <article class="item"> per item that genuinely needs the user's call.
+  Mirror the structure of the example below: header with item-num + h3, then
+  .detail with paragraph(s), then .my-take, then the .your-thoughts textarea
+  (always blank — the user fills it in).
+-->
+<section class="tier tier-needs-input">
+<h2>Needs your input <span class="count">(N)</span></h2>
+
+<article class="item" data-item="1">
+  <header>
+    <span class="item-num">1.</span>
+    <h3>EXAMPLE — replace with the real item title</h3>
+  </header>
+  <div class="detail">
+    <p>Detail paragraph: what the issue is, where it occurs, why it matters. Cite specific files, sections, or lines when relevant.</p>
+  </div>
+  <div class="my-take">
+    <span class="label">My take:</span> Your assessment or recommendation. Length to suit. The specific question to answer is provided by the calling skill.
+  </div>
+  <div class="your-thoughts">
+    <label for="t-1">Your thoughts</label>
+    <textarea id="t-1" data-item="1" placeholder="Leave blank to agree with my take"></textarea>
+  </div>
+</article>
+
+</section>
+
+<!--
+  MIDDLE TIER — Feedback.
+  Most items typically live here. Same structure as top-tier items but
+  visually less heavy (white background, tighter padding). Optional
+  category groupings via additional <h3> elements within the section if
+  you have >5 items and they cluster naturally (Bugs / Missed scope / etc.).
+-->
+<section class="tier tier-feedback">
+<h2>Feedback <span class="count">(N)</span></h2>
+
+<article class="item" data-item="2">
+  <header>
+    <span class="item-num">2.</span>
+    <h3>EXAMPLE — replace with the real item title</h3>
+  </header>
+  <div class="detail">
+    <p>Detail paragraph(s) when warranted.</p>
+  </div>
+  <div class="my-take">
+    <span class="label">My take:</span> Your take, in one to a few sentences.
+  </div>
+  <div class="your-thoughts">
+    <label for="t-2">Your thoughts</label>
+    <textarea id="t-2" data-item="2" placeholder="Leave blank to agree"></textarea>
+  </div>
+</article>
+
+</section>
+
+<!--
+  BOTTOM TIER — Routine.
+  Items that will be applied unless the user flags any. One <li> per item.
+  Each li: item-num, body (description + take in one line), flag button,
+  hidden flag-input that appears when the flag button is clicked.
+-->
+<section class="tier tier-routine">
+<h2>Routine <span class="count">(N) — auto-apply unless flagged</span></h2>
+<ul class="routine-list">
+
+<li class="routine-item" data-item="3">
+  <span class="item-num">3.</span>
+  <span class="body">EXAMPLE: one-line description of the routine item. <em>Brief take inline if useful.</em></span>
+  <button class="flag-btn" data-item="3">Flag</button>
+  <div class="flag-input"><textarea data-item="3" placeholder="Why are you flagging this?"></textarea></div>
+</li>
+
+</ul>
+</section>
+
+</div>
+
+<!--
+  REPLACE the totals (17 below = top tier + middle tier items, the ones
+  with textareas) and the doc identifier in the JS (docId variable below).
+-->
+<footer class="actions">
+  <div class="status">
+    <span class="count" id="filled-count">0</span> / 17 thoughts entered ·
+    <span class="count" id="flagged-count">0</span> routine flagged
+  </div>
+  <div class="slideshow-nav">
+    <button id="prev-btn" aria-label="Previous">← Prev</button>
+    <span class="progress">Item <span id="current-idx">1</span> of <span id="total-idx">17</span> · <span id="current-tier">Needs your input</span></span>
+    <button id="next-btn" aria-label="Next">Next →</button>
+  </div>
+  <button class="copy-btn" id="copy-btn">Copy responses</button>
+</footer>
+
+<script>
+// REPLACE: doc identifier used in the response blob.
+const docId = 'docs/features/<FEATURE>/<phase>-feedback-<N>';
+
+document.querySelectorAll('.your-thoughts textarea').forEach(ta => {
+  ta.addEventListener('input', () => {
+    ta.classList.toggle('has-content', ta.value.trim().length > 0);
+    updateCounts();
+  });
+});
+
+document.querySelectorAll('.tier-routine .flag-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.dataset.item;
+    const input = document.querySelector(`.tier-routine li[data-item="${item}"] .flag-input`);
+    input.classList.toggle('visible');
+    btn.classList.toggle('active');
+    if (input.classList.contains('visible')) {
+      input.querySelector('textarea').focus();
+    } else {
+      input.querySelector('textarea').value = '';
+    }
+    updateCounts();
+  });
+});
+
+document.querySelectorAll('.tier-routine .flag-input textarea').forEach(ta => {
+  ta.addEventListener('input', updateCounts);
+});
+
+function updateCounts() {
+  const filled = Array.from(document.querySelectorAll('.your-thoughts textarea'))
+    .filter(ta => ta.value.trim().length > 0).length;
+  const flagged = Array.from(document.querySelectorAll('.tier-routine .flag-btn.active')).length;
+  document.getElementById('filled-count').textContent = filled;
+  document.getElementById('flagged-count').textContent = flagged;
+}
+
+document.getElementById('copy-btn').addEventListener('click', async () => {
+  const responses = {};
+  document.querySelectorAll('.your-thoughts textarea').forEach(ta => {
+    responses[ta.dataset.item] = ta.value.trim();
+  });
+  const routineFlags = {};
+  document.querySelectorAll('.tier-routine .flag-btn.active').forEach(btn => {
+    const item = btn.dataset.item;
+    const input = document.querySelector(`.tier-routine li[data-item="${item}"] .flag-input textarea`);
+    routineFlags[item] = input.value.trim();
+  });
+
+  const payload = { doc: docId, responses, routine_flags: routineFlags };
+  const blob = '```json\n' + JSON.stringify(payload, null, 2) + '\n```';
+  try {
+    await navigator.clipboard.writeText(blob);
+    const btn = document.getElementById('copy-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+  } catch (err) {
+    alert('Copy failed: ' + err.message);
+  }
+});
+
+// View mode + slideshow navigation
+const items = Array.from(document.querySelectorAll('.tier-needs-input article.item, .tier-feedback article.item'));
+let currentIdx = 0;
+let viewMode = 'list';
+
+function setViewMode(mode) {
+  viewMode = mode;
+  document.body.classList.remove('view-mode-list', 'view-mode-slideshow');
+  document.body.classList.add('view-mode-' + mode);
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === mode);
+  });
+  if (mode === 'slideshow') {
+    showItem(currentIdx);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  } else {
+    items.forEach(it => it.classList.remove('slideshow-current'));
+  }
+}
+
+function showItem(idx) {
+  items.forEach((item, i) => item.classList.toggle('slideshow-current', i === idx));
+  document.getElementById('current-idx').textContent = idx + 1;
+  document.getElementById('prev-btn').disabled = idx === 0;
+  document.getElementById('next-btn').disabled = idx === items.length - 1;
+  const item = items[idx];
+  const tier = item.closest('.tier-needs-input') ? 'Needs your input' :
+               item.closest('.tier-feedback') ? 'Feedback' : '';
+  document.getElementById('current-tier').textContent = tier;
+}
+
+document.getElementById('total-idx').textContent = items.length;
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => setViewMode(btn.dataset.view));
+});
+document.getElementById('prev-btn').addEventListener('click', () => {
+  if (currentIdx > 0) { currentIdx--; showItem(currentIdx); }
+});
+document.getElementById('next-btn').addEventListener('click', () => {
+  if (currentIdx < items.length - 1) { currentIdx++; showItem(currentIdx); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('textarea, input')) return;
+  if (viewMode !== 'slideshow') return;
+  if (e.key === 'ArrowRight' || e.key === 'j') {
+    if (currentIdx < items.length - 1) { currentIdx++; showItem(currentIdx); }
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'k') {
+    if (currentIdx > 0) { currentIdx--; showItem(currentIdx); }
+  }
+});
+
+setViewMode('list');
+</script>
+
+</body>
+</html>
