@@ -112,25 +112,15 @@ Prompt for the reviewer:
 
 ## Step 7: Produce feedback synthesis document
 
-When the reviewer returns, produce the synthesis document in **both**
-markdown and HTML formats. Both contain the same items in the same
-three-tier structure (Needs your input / Feedback / Routine).
+Produce the synthesis in **two passes**. The markdown is canonical — it
+must always exist on completion of this step. The HTML is rendered from
+the markdown.
 
-**Markdown** at `docs/features/<FEATURE>/requirements-feedback-<N>.md`
-(in the repo):
-- Follow the format and triage guidance in
-  `~/.claude/skills/feature/feedback-template.md`.
+### Pass 1 — Write the markdown (canonical)
 
-**HTML** at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`
-(in the dev-store, not the repo):
-- Resolve `<PROJECT>` with `basename $(git rev-parse --show-toplevel)`.
-- Create parent dirs with `mkdir -p` if needed.
-- Use `~/.claude/skills/feature/feedback-template.html` as the basis.
-  Copy the CSS and JavaScript verbatim. Replace the example items with
-  the real ones. Update `<title>`, the `<h1>`, the subtitle, the meta
-  line, and the textarea total in the footer.
-- Update the JS `docId` constant to match the markdown filename
-  (e.g. `docs/features/<FEATURE>/requirements-feedback-1`).
+Write to `docs/features/<FEATURE>/requirements-feedback-<N>.md` in the
+repo. Follow the format and triage guidance in
+`~/.claude/skills/feature/feedback-template.md`.
 
 For each piece of reviewer feedback, **My take** should say whether you
 agree or disagree with reasoning — if agreeing, note how you'd address
@@ -140,6 +130,28 @@ For feedback flagging plan-level detail in the requirements, the options are:
 1. **Accept and remove**: it's not load-bearing context
 2. **Move to Indicative implementation notes**: useful for planning, but doesn't belong in the requirements body (see the brief's "Requirements vs plan" section)
 3. **Disagree**: it's genuinely a requirement constraint, not a plan choice
+
+### Pass 2 — Render the HTML from the markdown
+
+Use `~/.claude/skills/feature/feedback-template.html` as the basis.
+Copy its CSS and JavaScript verbatim. Render the items from Pass 1's
+markdown into the template's three-tier structure.
+
+Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`,
+where `<PROJECT>` is `basename $(git rev-parse --show-toplevel)`.
+Create parent dirs with `mkdir -p` if needed.
+
+Update in the template:
+- `<title>`, the `<h1>`, the subtitle
+- The meta line (item counts)
+- The textarea total in the footer
+- The JS `docId` constant — match the markdown filename (e.g.
+  `docs/features/<FEATURE>/requirements-feedback-1`)
+
+If Pass 2 fails for any reason, the markdown from Pass 1 still stands
+as the synthesis output; the user can continue via the markdown path.
+
+### Hand off
 
 Tell the user both files are ready. Print the HTML's `file://` URL —
 that's the recommended surface for review. The markdown is the fallback
