@@ -112,30 +112,28 @@ Prompt for the reviewer:
 
 ## Step 7: Produce feedback synthesis document
 
-Produce the synthesis in **two passes**. The markdown is canonical — it
-must always exist on completion of this step. The HTML is rendered from
-the markdown.
+For each piece of reviewer feedback, decide your take:
 
-### Pass 1 — Write the markdown (canonical)
+- **My take** should say whether you agree or disagree with reasoning —
+  if agreeing, note how you'd address it; if disagreeing, explain why
+  the requirement is correct as written.
+- For feedback flagging plan-level detail in the requirements, the
+  options are:
+  1. **Accept and remove**: it's not load-bearing context
+  2. **Move to Indicative implementation notes**: useful for planning,
+     but doesn't belong in the requirements body (see the brief's
+     "Requirements vs plan" section)
+  3. **Disagree**: it's genuinely a requirement constraint, not a plan
+     choice
 
-Write to `docs/features/<FEATURE>/requirements-feedback-<N>.md` in the
-repo. Follow the format and triage guidance in
-`~/.claude/skills/feature/feedback-template.md`.
+Then produce the synthesis in **two passes**. Both must complete; the
+markdown's content must match the HTML's.
 
-For each piece of reviewer feedback, **My take** should say whether you
-agree or disagree with reasoning — if agreeing, note how you'd address
-it; if disagreeing, explain why the requirement is correct as written.
-
-For feedback flagging plan-level detail in the requirements, the options are:
-1. **Accept and remove**: it's not load-bearing context
-2. **Move to Indicative implementation notes**: useful for planning, but doesn't belong in the requirements body (see the brief's "Requirements vs plan" section)
-3. **Disagree**: it's genuinely a requirement constraint, not a plan choice
-
-### Pass 2 — Render the HTML from the markdown
+### Pass 1 — Write the HTML
 
 Use `~/.claude/skills/feature/feedback-template.html` as the basis.
-Copy its CSS and JavaScript verbatim. Render the items from Pass 1's
-markdown into the template's three-tier structure.
+Copy its CSS and JavaScript verbatim. Render the items into the
+template's three-tier structure (Needs your input / Feedback / Routine).
 
 Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`,
 where `<PROJECT>` is `basename $(git rev-parse --show-toplevel)`.
@@ -148,8 +146,12 @@ Update in the template:
 - The JS `docId` constant — match the markdown filename (e.g.
   `docs/features/<FEATURE>/requirements-feedback-1`)
 
-If Pass 2 fails for any reason, the markdown from Pass 1 still stands
-as the synthesis output; the user can continue via the markdown path.
+### Pass 2 — Write the markdown
+
+Render the same items as markdown at
+`docs/features/<FEATURE>/requirements-feedback-<N>.md` in the repo.
+Follow the format and triage guidance in
+`~/.claude/skills/feature/feedback-template.md`.
 
 ### Hand off
 

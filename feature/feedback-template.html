@@ -283,6 +283,24 @@
     min-height: 100px;
     font-size: 1rem;
   }
+  /* Slideshow routine slide — appears as the last slide */
+  body.view-mode-slideshow section.tier-routine.slideshow-current-routine {
+    display: block;
+    max-width: 780px;
+    margin: 48px auto;
+  }
+  body.view-mode-slideshow section.tier-routine.slideshow-current-routine > h2 {
+    display: block;
+    position: static;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    font-size: 1.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text);
+    margin: 0 0 16px;
+    padding: 0 0 8px;
+  }
 
   footer.actions button.copy-btn {
     background: var(--accent);
@@ -482,6 +500,8 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
 
 // View mode + slideshow navigation
 const items = Array.from(document.querySelectorAll('.tier-needs-input article.item, .tier-feedback article.item'));
+const routineSection = document.querySelector('.tier-routine');
+const totalSlides = items.length + (routineSection ? 1 : 0);
 let currentIdx = 0;
 let viewMode = 'list';
 
@@ -497,21 +517,29 @@ function setViewMode(mode) {
     window.scrollTo({ top: 0, behavior: 'instant' });
   } else {
     items.forEach(it => it.classList.remove('slideshow-current'));
+    if (routineSection) routineSection.classList.remove('slideshow-current-routine');
   }
 }
 
 function showItem(idx) {
+  const isRoutineSlide = routineSection && idx === items.length;
   items.forEach((item, i) => item.classList.toggle('slideshow-current', i === idx));
+  if (routineSection) routineSection.classList.toggle('slideshow-current-routine', isRoutineSlide);
   document.getElementById('current-idx').textContent = idx + 1;
   document.getElementById('prev-btn').disabled = idx === 0;
-  document.getElementById('next-btn').disabled = idx === items.length - 1;
-  const item = items[idx];
-  const tier = item.closest('.tier-needs-input') ? 'Needs your input' :
-               item.closest('.tier-feedback') ? 'Feedback' : '';
+  document.getElementById('next-btn').disabled = idx === totalSlides - 1;
+  let tier;
+  if (isRoutineSlide) {
+    tier = 'Routine';
+  } else {
+    const item = items[idx];
+    tier = item.closest('.tier-needs-input') ? 'Needs your input' :
+           item.closest('.tier-feedback') ? 'Feedback' : '';
+  }
   document.getElementById('current-tier').textContent = tier;
 }
 
-document.getElementById('total-idx').textContent = items.length;
+document.getElementById('total-idx').textContent = totalSlides;
 
 document.querySelectorAll('.view-btn').forEach(btn => {
   btn.addEventListener('click', () => setViewMode(btn.dataset.view));
@@ -520,13 +548,13 @@ document.getElementById('prev-btn').addEventListener('click', () => {
   if (currentIdx > 0) { currentIdx--; showItem(currentIdx); }
 });
 document.getElementById('next-btn').addEventListener('click', () => {
-  if (currentIdx < items.length - 1) { currentIdx++; showItem(currentIdx); }
+  if (currentIdx < totalSlides - 1) { currentIdx++; showItem(currentIdx); }
 });
 document.addEventListener('keydown', (e) => {
   if (e.target.matches('textarea, input')) return;
   if (viewMode !== 'slideshow') return;
   if (e.key === 'ArrowRight' || e.key === 'j') {
-    if (currentIdx < items.length - 1) { currentIdx++; showItem(currentIdx); }
+    if (currentIdx < totalSlides - 1) { currentIdx++; showItem(currentIdx); }
   }
   if (e.key === 'ArrowLeft' || e.key === 'k') {
     if (currentIdx > 0) { currentIdx--; showItem(currentIdx); }
