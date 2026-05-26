@@ -57,13 +57,47 @@ Read the following files:
 
 ## Step 3: Draft
 
-Write the implementation plan to `docs/features/$ARGUMENTS/plan.md`.
+Plans are produced in **two formats** during Phase 2A. Markdown is
+canonical (committed to the repo, source of truth for the workflow,
+read by the implementing agent). HTML is the rich review surface.
+
+### Pass 1 — Write the markdown plan
+
+Write to `docs/features/$ARGUMENTS/plan.md`.
 
 Follow the structure and guidance in the brief. Include:
 - Key technical decisions with code snippets
 - File structure showing what's created/modified
 - Phase breakdown with test descriptions and MR chain
 - Flat checklist of all steps at the bottom
+
+### Pass 2 — Render the HTML plan
+
+Use `~/.claude/skills/feature/plan-template.html` as the basis. Copy its
+CSS and JavaScript verbatim. Render the markdown plan into the template's
+structure: TOC sidebar, sections per the markdown's headings, syntax-
+highlighted code blocks, phase badges, clickable checklist, click-to-
+comment widget, sticky footer.
+
+Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`, where
+`<PROJECT>` is `basename $(git rev-parse --show-toplevel)`. Create
+parent dirs with `mkdir -p` if needed.
+
+Update in the template:
+- `<title>`, the `<h1>` (feature name), the subtitle
+- The TOC entries to match the actual sections in the plan (use `id`
+  attributes on each `<section>` that match the TOC's `href` anchors)
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/plan`
+
+### Open it
+
+Open the HTML in the user's browser:
+
+```bash
+google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html &
+```
+
+The trailing `&` backgrounds the browser process so the agent doesn't wait.
 
 ## Step 4: Present and review in parallel
 
@@ -120,8 +154,24 @@ Present the triage in chat — do not write a synthesis document. Format:
 >
 > Reply with answers (or "go" to take my take on all of them) and I'll apply.
 
+The user may also leave click-to-comment annotations in `plan.html` and
+paste a JSON blob back. Format:
+
+```json
+{
+  "doc": "docs/features/<FEATURE>/plan",
+  "comments": [
+    {"excerpt": "...", "text": "user comment"}
+  ]
+}
+```
+
+Fold those comments into the same triage — each comment is an additional
+piece of feedback. The user may paste comments alongside the reviewer's
+output, before it, or independently.
+
 Wait for the user's response. Apply the "Will apply" items plus the
-resolved questions.
+resolved questions and any actionable comment annotations.
 
 If any "Need your call" answers reveal substantive design decisions
 (principles, reasoning, broader implications beyond the specific item),
@@ -129,16 +179,25 @@ capture them in a "Design notes" section of
 `docs/features/<FEATURE>/requirements.md`. Keep entries to one or two
 lines, cite the review round.
 
+After applying changes to `plan.md`, **re-render the HTML** (Step 3 Pass 2)
+to keep `plan.html` in sync. The user may want to reload it.
+
 Summarise what was applied to the user.
 
 ## Step 6: Iterate
 
-If the user adds inline notes directly to the plan document and asks you
-to integrate them, or asks to go around the loop again:
-1. Re-read the document to pick up their edits
-2. Incorporate inline notes into the plan properly
-3. Re-spawn the reviewer subagent on the updated content
-4. Follow Step 5 (triage and process inline) for the new feedback
+If the user provides further feedback via any of:
+- Inline `note: ...` annotations in `plan.md`
+- Click-to-comment JSON pasted from `plan.html`
+- Direct chat instructions
+
+Then:
+1. Re-read `plan.md` to pick up any inline edits
+2. Apply the new feedback to `plan.md`
+3. Re-render `plan.html` from the updated markdown
+4. (If the changes are substantial) re-spawn the reviewer subagent on the
+   updated content
+5. Follow Step 5 (triage and process inline) for any new reviewer feedback
 
 Repeat until the user approves conversationally.
 
