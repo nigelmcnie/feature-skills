@@ -1,20 +1,19 @@
 # Feedback Synthesis Template
 
-Shared format for the **markdown** version of the feedback synthesis
-documents produced by the feature workflow:
+Shared structure and triage logic for feedback synthesis documents
+produced by the feature workflow.
 
-- `requirements-feedback-N.md` (from `feature-requirements`)
-- `review-feedback-N.md` (from `feature-review`)
+**Format status:**
 
-The `feature-plan` and `feature-iterate` skills handle reviewer feedback
-inline in chat rather than producing a synthesis document.
+- `feature-requirements` produces synthesis docs in **HTML only**
+  (Phase 1B). See `~/.claude/skills/feature/feedback-template.html`.
+- `feature-review` still produces synthesis docs in this **markdown**
+  format. (Phase 1A flip pending.)
 
-> **Phase 1A:** `feature-requirements` (and soon `feature-review`)
-> produces both a markdown synthesis doc and an HTML one. The HTML
-> reference template is at `~/.claude/skills/feature/feedback-template.html`
-> and is the recommended surface for review; the markdown remains as
-> the fallback path for direct editing. Same triage heuristics apply
-> to both formats.
+The structural and triage guidance below applies to both formats.
+
+`feature-plan` and `feature-iterate` handle reviewer feedback inline in
+chat rather than producing a synthesis document.
 
 ## Numbering
 

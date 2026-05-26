@@ -126,10 +126,7 @@ For each piece of reviewer feedback, decide your take:
   3. **Disagree**: it's genuinely a requirement constraint, not a plan
      choice
 
-Then produce the synthesis in **two passes**. Both must complete; the
-markdown's content must match the HTML's.
-
-### Pass 1 — Write the HTML
+### Write the HTML synthesis doc
 
 Use `~/.claude/skills/feature/feedback-template.html` as the basis.
 Copy its CSS and JavaScript verbatim. Render the items into the
@@ -143,28 +140,27 @@ Update in the template:
 - `<title>`, the `<h1>`, the subtitle
 - The meta line (item counts)
 - The textarea total in the footer
-- The JS `docId` constant — match the markdown filename (e.g.
-  `docs/features/<FEATURE>/requirements-feedback-1`)
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-1`
 
-### Pass 2 — Write the markdown
+### Open it
 
-Render the same items as markdown at
-`docs/features/<FEATURE>/requirements-feedback-<N>.md` in the repo.
-Follow the format and triage guidance in
-`~/.claude/skills/feature/feedback-template.md`.
+Open the HTML in the user's browser:
+
+```bash
+google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html &
+```
+
+The trailing `&` backgrounds the browser process so the agent doesn't wait.
 
 ### Hand off
 
-Tell the user both files are ready. Print the HTML's `file://` URL —
-that's the recommended surface for review. The markdown is the fallback
-for direct editing. The user picks one path; both are accepted in Step 7b.
+Tell the user the synthesis doc is open and that you'll wait for them
+to click **Copy responses** in the HTML and paste the JSON blob back.
 
 ## Step 7b: Integrate feedback
 
-The user can respond via either path:
-
-**HTML path (recommended)** — the user clicks "Copy responses" in the
-HTML and pastes a JSON blob in chat. Format:
+The user clicks **Copy responses** in the HTML and pastes a JSON blob
+in chat. Format:
 
 ```json
 {
@@ -179,20 +175,13 @@ HTML and pastes a JSON blob in chat. Format:
 - Items in `routine_flags` are routine items the user wants to discuss
   — their comment explains why. Treat as needing your call.
 
-**Markdown path (fallback)** — the user edits the `.md` directly, fills
-in "Your thoughts" inline, and says "i'm done". Re-read the synthesis
-markdown and the requirements document (to pick up any inline
-`note: ...` annotations they may have added). Semantics:
-- Blank "Your thoughts" = implicit agreement
-- Filled "Your thoughts" = use their direction
-
-If the user provides a JSON blob, prefer it. If they say "i'm done"
-without pasting a blob, fall back to re-reading the markdown.
+If the user signals completion without pasting a blob (e.g. "i'm done"),
+ask them to click **Copy responses** in the HTML and paste it.
 
 Integrate all feedback into the requirements document, noting any
 declined suggestions inline near the relevant section.
 
-Before archiving the synthesis documents, capture decisions that would
+Before archiving the synthesis doc, capture decisions that would
 otherwise be lost: check user annotations for design principles, broader
 reasoning, or open questions beyond the specific decision. Distill these
 into a "Design notes" section in the feature's `requirements.md` (create
@@ -201,30 +190,13 @@ source review round. Ensure declined suggestions land in "Alternatives
 considered" or "Non-goals" with the user's reasoning. Don't duplicate
 what's already captured in the requirements text.
 
-Archive both files instead of deleting them (preserves a record for
-later analysis):
+Archive the HTML synthesis doc:
 
 ```bash
-# Markdown (in repo)
-mkdir -p docs/features/<FEATURE>/.feedback-archive
-mv docs/features/<FEATURE>/requirements-feedback-<N>.md \
-   docs/features/<FEATURE>/.feedback-archive/
-
-# HTML (in dev-store)
 PROJECT=$(basename $(git rev-parse --show-toplevel))
 mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
 mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
    ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/
-```
-
-Ensure the markdown archive directory is gitignored locally (not committed).
-Append the pattern to the repo's local exclude file if it's not already there:
-
-```bash
-GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
-[ -n "$GIT_DIR" ] && \
-  ! grep -qxF '**/.feedback-archive/' "$GIT_DIR/info/exclude" 2>/dev/null && \
-  echo '**/.feedback-archive/' >> "$GIT_DIR/info/exclude"
 ```
 
 Remove any resolved inline notes from `requirements.md` once decisions are
