@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Symlink each skill dir from this repo into ~/.claude/skills/.
+# Symlink each skill dir from this repo into ~/.claude/skills/, and
+# symlink the export script into ~/.local/bin/ so skills can invoke
+# `feature-html-to-md` without hardcoding repo paths.
 # Safe to re-run.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET_DIR="$HOME/.claude/skills"
+SKILLS_DIR="$HOME/.claude/skills"
+BIN_DIR="$HOME/.local/bin"
 
-mkdir -p "$TARGET_DIR"
+mkdir -p "$SKILLS_DIR" "$BIN_DIR"
 
 for skill in feature feature-requirements feature-plan feature-implement \
              feature-context feature-review feature-iterate feature-qa; do
     src="$REPO_DIR/$skill"
-    dst="$TARGET_DIR/$skill"
+    dst="$SKILLS_DIR/$skill"
 
     if [[ ! -d "$src" ]]; then
         echo "skip: $skill (not in repo)" >&2
@@ -24,7 +27,25 @@ for skill in feature feature-requirements feature-plan feature-implement \
     fi
 
     ln -s "$src" "$dst"
-    echo "linked: $skill"
+    echo "linked skill: $skill"
+done
+
+# Bin scripts. Each must be executable in the repo.
+for script in feature-html-to-md; do
+    src="$REPO_DIR/bin/$script"
+    dst="$BIN_DIR/$script"
+
+    if [[ ! -f "$src" ]]; then
+        echo "skip: $script (not in repo)" >&2
+        continue
+    fi
+
+    if [[ -e "$dst" || -L "$dst" ]]; then
+        rm -f "$dst"
+    fi
+
+    ln -s "$src" "$dst"
+    echo "linked bin: $script -> $dst"
 done
 
 echo "done."
