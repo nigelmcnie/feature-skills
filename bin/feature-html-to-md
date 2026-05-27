@@ -1,0 +1,386 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "beautifulsoup4>=4.12",
+# ]
+# ///
+"""
+feature-html-to-md — Convert a feature-skill HTML doc to markdown.
+
+Reads `<meta name="feature-doc-type" content="X">` from the source HTML
+to dispatch to a per-type converter (context, requirements, plan,
+features). Strips UI chrome (TOC, comment widgets, comments rail,
+sticky footer, scripts, styles), drops checkboxes from plan checklists,
+and emits markdown to the target path.
+
+Markdown produced is a read-only snapshot. HTML is canonical.
+
+Usage:
+    feature-html-to-md <source.html> <target.md>
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+from bs4 import BeautifulSoup, NavigableString, Tag
+
+
+# ---------------------------------------------------------------------------
+# Inline conversion
+# ---------------------------------------------------------------------------
+
+def inline(node) -> str:
+    """Convert an inline node (text, code, links, emphasis, …) to markdown."""
+    if isinstance(node, NavigableString):
+        return str(node)
+    if not isinstance(node, Tag):
+        return ""
+    name = node.name
+    if name == "code":
+        return f"`{node.get_text()}`"
+    if name in ("strong", "b"):
+        return f"**{inline_children(node)}**"
+    if name in ("em", "i"):
+        return f"*{inline_children(node)}*"
+    if name == "a":
+        href = node.get("href", "")
+        text = inline_children(node).strip()
+        return f"[{text}]({href})"
+    if name == "br":
+        return "\n"
+    # spans and other inline wrappers — drop the wrapper, keep the content
+    return inline_children(node)
+
+
+def inline_children(node) -> str:
+    return "".join(inline(c) for c in node.children)
+
+
+def squash(s: str) -> str:
+    """Collapse internal whitespace runs to single spaces, trim ends."""
+    return re.sub(r"\s+", " ", s).strip()
+
+
+# ---------------------------------------------------------------------------
+# Block conversion
+# ---------------------------------------------------------------------------
+
+BLOCK_TAGS = {
+    "p", "ul", "ol", "pre", "blockquote", "table", "section", "div",
+    "h2", "h3", "h4", "h5",
+}
+
+
+def block(node, level: int = 0) -> str:
+    """Convert a block-level node to markdown."""
+    if isinstance(node, NavigableString):
+        text = str(node).strip()
+        return text
+    if not isinstance(node, Tag):
+        return ""
+    name = node.name
+    if name == "p":
+        return squash(inline_children(node))
+    if name == "ul":
+        return list_block(node, ordered=False, level=level)
+    if name == "ol":
+        return list_block(node, ordered=True, level=level)
+    if name == "pre":
+        return code_block(node)
+    if name == "blockquote":
+        inner = render_blocks(node.children, level=level)
+        return "\n".join(f"> {line}" if line else ">" for line in inner.split("\n"))
+    if name == "h3":
+        return f"### {squash(inline_children(node))}"
+    if name == "h4":
+        return f"#### {squash(inline_children(node))}"
+    if name == "h5":
+        return f"##### {squash(inline_children(node))}"
+    if name == "table":
+        return table_block(node)
+    if name == "div":
+        classes = node.get("class") or []
+        if "phase-header" in classes:
+            return phase_header_block(node)
+        if "phase" in classes:
+            return phase_block(node, level=level)
+        return render_blocks(node.children, level=level)
+    if name == "section":
+        return render_blocks(node.children, level=level)
+    return ""
+
+
+def render_blocks(children, level: int = 0) -> str:
+    parts = []
+    for child in children:
+        rendered = block(child, level=level)
+        if rendered:
+            parts.append(rendered)
+    return "\n\n".join(parts)
+
+
+def list_block(node, ordered: bool, level: int) -> str:
+    lines = []
+    n = 1
+    for li in node.find_all("li", recursive=False):
+        # Drop checkboxes (plan checklists) — markdown is read-only.
+        for inp in li.find_all("input"):
+            inp.decompose()
+        marker = f"{n}." if ordered else "-"
+        n += 1
+
+        inline_parts = []
+        nested_blocks = []
+        for c in li.children:
+            if isinstance(c, Tag) and c.name in BLOCK_TAGS:
+                nested_blocks.append(block(c, level=level + 1))
+            else:
+                inline_parts.append(inline(c))
+        inline_text = squash("".join(inline_parts))
+
+        # If there's no inline content, promote the first nested block's
+        # first line up to the marker line so we don't emit "1." on its own.
+        if not inline_text and nested_blocks:
+            first = nested_blocks.pop(0)
+            first_lines = first.split("\n")
+            inline_text = first_lines[0]
+            # Headings inside list items don't render correctly as
+            # "1. ### Title"; downgrade to bold.
+            heading_match = re.match(r"^#+\s+(.+)$", inline_text)
+            if heading_match:
+                inline_text = f"**{heading_match.group(1)}**"
+            if len(first_lines) > 1:
+                nested_blocks.insert(0, "\n".join(first_lines[1:]))
+
+        indent = "  " * level
+        lines.append(f"{indent}{marker} {inline_text}".rstrip())
+        for nb in nested_blocks:
+            if not nb:
+                continue
+            for line in nb.split("\n"):
+                lines.append(f"{indent}  {line}" if line else "")
+    return "\n".join(lines)
+
+
+def code_block(pre: Tag) -> str:
+    code = pre.find("code")
+    if code is None:
+        return f"```\n{pre.get_text()}\n```"
+    lang = ""
+    for cls in (code.get("class") or []):
+        if cls.startswith("language-"):
+            lang = cls[len("language-"):]
+            break
+    return f"```{lang}\n{code.get_text()}\n```"
+
+
+def table_block(table: Tag) -> str:
+    rows = []
+    headers: list[str] = []
+    thead = table.find("thead")
+    if thead:
+        for th in thead.find_all("th"):
+            headers.append(squash(inline_children(th)))
+        rows.append("| " + " | ".join(headers) + " |")
+        rows.append("|" + "|".join("---" for _ in headers) + "|")
+
+    tbody = table.find("tbody") or table
+    for tr in tbody.find_all("tr"):
+        if "empty" in (tr.get("class") or []):
+            continue
+        cells = []
+        for cell in tr.find_all(["td", "th"]):
+            cells.append(squash(inline_children(cell)))
+        if cells:
+            rows.append("| " + " | ".join(cells) + " |")
+    return "\n".join(rows)
+
+
+def phase_header_block(div: Tag) -> str:
+    badge = div.find(class_="phase-badge")
+    heading = div.find(["h2", "h3"])
+    badge_text = squash(inline_children(badge)) if badge else ""
+    head_text = squash(inline_children(heading)) if heading else ""
+    if badge_text and head_text:
+        return f"### {badge_text} — {head_text}"
+    return f"### {head_text or badge_text}"
+
+
+def phase_block(div: Tag, level: int) -> str:
+    """A <div class='phase'> contains a phase-header followed by content."""
+    parts = []
+    for c in div.children:
+        if isinstance(c, Tag) and "phase-header" in (c.get("class") or []):
+            parts.append(phase_header_block(c))
+        else:
+            rendered = block(c, level=level)
+            if rendered:
+                parts.append(rendered)
+    return "\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Section helpers
+# ---------------------------------------------------------------------------
+
+def section_heading(sec: Tag) -> str:
+    """Get the section's <h2> text, stripping `.count` chips."""
+    h2 = sec.find("h2")
+    if not h2:
+        return sec.get("id", "").replace("-", " ").capitalize()
+    parts = []
+    for c in h2.children:
+        if isinstance(c, Tag) and "count" in (c.get("class") or []):
+            continue
+        parts.append(inline(c))
+    return squash("".join(parts))
+
+
+def section_body(sec: Tag, exclude_phase_header: bool = False) -> str:
+    """Render a section's body (everything except its <h2>)."""
+    children = []
+    for c in sec.children:
+        if isinstance(c, Tag) and c.name == "h2":
+            continue
+        if exclude_phase_header and isinstance(c, Tag) \
+                and "phase-header" in (c.get("class") or []):
+            continue
+        children.append(c)
+    return render_blocks(children)
+
+
+def doc_title(soup) -> str:
+    h1 = soup.find("h1")
+    return squash(inline_children(h1)) if h1 else ""
+
+
+# ---------------------------------------------------------------------------
+# Per-type converters
+# ---------------------------------------------------------------------------
+
+def emit_section(sec: Tag, heading: str | None = None,
+                 exclude_phase_header: bool = False) -> str:
+    """Standard section rendering: '## heading' + body."""
+    heading = heading or section_heading(sec)
+    body = section_body(sec, exclude_phase_header=exclude_phase_header)
+    if body:
+        return f"## {heading}\n\n{body}"
+    return f"## {heading}"
+
+
+def document_sections(soup):
+    """Return the doc's content sections in document order.
+
+    Looks first for direct <section> children of <main>; falls back to a
+    recursive search so wrappers like <div class="container"> don't hide
+    the structure.
+    """
+    main = soup.find("main")
+    if main is not None:
+        direct = main.find_all("section", id=True, recursive=False)
+        if direct:
+            return direct
+    body = soup.find("body") or soup
+    return body.find_all("section", id=True)
+
+
+def convert_generic(soup) -> str:
+    """Standard render: H1 title, then each section in document order."""
+    title = doc_title(soup)
+    parts = [f"# {title}"] if title else []
+    for sec in document_sections(soup):
+        parts.append(emit_section(sec))
+    return "\n\n".join(parts) + "\n"
+
+
+def convert_plan(soup) -> str:
+    """Plan render: same as generic, but phase sections get a badge prefix."""
+    title = doc_title(soup)
+    parts = [f"# {title}"] if title else []
+    for sec in document_sections(soup):
+        sid = sec.get("id", "")
+        phase_header = sec.find("div", class_="phase-header")
+        if phase_header is not None and sid.startswith("phase-"):
+            badge = phase_header.find(class_="phase-badge")
+            heading_tag = phase_header.find("h2")
+            badge_text = squash(inline_children(badge)) if badge else ""
+            head_text = squash(inline_children(heading_tag)) if heading_tag else ""
+            heading = (f"{badge_text} — {head_text}"
+                       if badge_text and head_text else (head_text or badge_text))
+            parts.append(emit_section(sec, heading=heading,
+                                      exclude_phase_header=True))
+        else:
+            parts.append(emit_section(sec))
+    return "\n\n".join(parts) + "\n"
+
+
+CONVERTERS = {
+    "context": convert_generic,
+    "requirements": convert_generic,
+    "plan": convert_plan,
+    "features": convert_generic,
+}
+
+
+# ---------------------------------------------------------------------------
+# Chrome stripping
+# ---------------------------------------------------------------------------
+
+def strip_chrome(soup) -> None:
+    """Remove non-content elements: TOC, comment widgets, footers, scripts."""
+    for tag in ("script", "style"):
+        for el in soup.find_all(tag):
+            el.decompose()
+    for el in soup.find_all("nav", class_="toc"):
+        el.decompose()
+    for el in soup.find_all("aside", class_="comments-rail"):
+        el.decompose()
+    for el in soup.find_all("footer", class_="actions"):
+        el.decompose()
+    for el in soup.find_all(id=["comment-trigger", "comment-popover"]):
+        el.decompose()
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 3:
+        print("usage: feature-html-to-md <source.html> <target.md>",
+              file=sys.stderr)
+        return 2
+    src = Path(argv[1])
+    dst = Path(argv[2])
+    if not src.is_file():
+        print(f"error: source not found: {src}", file=sys.stderr)
+        return 1
+
+    soup = BeautifulSoup(src.read_text(encoding="utf-8"), "html.parser")
+    meta = soup.find("meta", attrs={"name": "feature-doc-type"})
+    if meta is None:
+        print(f"error: no <meta name='feature-doc-type'> in {src}",
+              file=sys.stderr)
+        return 1
+    doc_type = meta.get("content", "").strip()
+    converter = CONVERTERS.get(doc_type)
+    if converter is None:
+        print(f"error: unknown doc type {doc_type!r} "
+              f"(expected one of {sorted(CONVERTERS)})", file=sys.stderr)
+        return 1
+
+    strip_chrome(soup)
+    markdown = converter(soup).rstrip() + "\n"
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(markdown, encoding="utf-8")
+    print(f"wrote {dst} (type={doc_type})", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
