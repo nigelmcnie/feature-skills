@@ -1,23 +1,51 @@
 <!--
-  Implementation Plan Template — HTML version.
+  Context Template — HTML version.
 
-  This file is a reference template for generating HTML plan docs.
-  feature-plan produces a plan.html alongside the canonical plan.md.
+  This file is a reference template for generating HTML context docs.
+  feature-context produces a context.html in the developer-scoped store
+  (~/.claude/feature-docs/<project>/<feature>/context.html).
+
+  A context doc captures background for a feature that may be worked on
+  later. It informs requirements, but is not requirements itself.
 
   HOW TO USE (for the agent):
-    1. Copy this entire file as a starting point for the new plan HTML.
+    1. Copy this entire file as a starting point for the new context HTML.
     2. Replace the contents of <title>, the <h1>, and the subtitle with
        the real feature info.
-    3. Replace the TOC entries to match the actual sections in the plan.
-    4. Replace the example sections with the real ones:
-         Overview, Key technical decisions, File structure,
-         Phase 1..N (with phase headers), QC, Checklist.
-    5. Render code blocks as <pre><code class="language-python">...</code></pre>
-       (highlight.js will syntax-highlight on load).
-    6. Render the checklist as <li><input type="checkbox"><span class="label">...</span></li>.
-    7. Update the JS `docId` constant.
-    8. Keep all CSS and JavaScript verbatim.
-    9. Save to ~/.claude/feature-docs/<project>/<feature>/plan.html.
+    3. Replace the section bodies with the real content. Section IDs are
+       fixed; keep them so the markdown export script can dispatch.
+    4. Omit a section if you have nothing to put in it (e.g. no Links).
+       Don't fabricate filler.
+    5. Update the JS `docId` constant — e.g. docs/features/<FEATURE>/context.
+    6. Keep all CSS and JavaScript verbatim.
+    7. Save to ~/.claude/feature-docs/<project>/<feature>/context.html.
+
+  Structure to fill in (from the context brief, now inlined here):
+    - Problem space and motivation: why this might be worth doing, what's
+      broken or missing, what conversations or observations triggered it.
+    - Related work: existing patterns or features in the codebase that
+      connect to this. Link to other context.md / requirements.md when
+      relevant.
+    - Constraints and considerations: what to watch for, dependencies,
+      prior decisions that shape the space.
+    - Links: design docs, customer reports, Slack threads, tickets,
+      external references.
+    - Open questions: things worth resolving when requirements get written.
+
+  What context.html is NOT:
+    - User stories (those belong in requirements).
+    - A technical approach or design (that belongs in requirements/plan).
+    - A phase breakdown.
+    - A spec to be transcribed verbatim into requirements.
+    - A wishlist in disguise — tightly scoped to one feature.
+
+  Guidance:
+    - Distill, don't transcribe. The conversation may have been long;
+      the context doc should be readable in a couple of minutes.
+    - Capture *why* this came up, not just *what* was discussed.
+    - Use concrete examples — code paths, filenames, error messages.
+    - Acknowledge unknowns. A clear "open question" beats a half-formed
+      guess.
 
   Click-to-comment: user selects text in the rendered HTML, a "Comment"
   button appears, they leave a marginalia comment. "Copy comments" emits
@@ -28,15 +56,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
-<meta name="feature-doc-type" content="plan">
-<title>FEATURE_NAME — Implementation Plan</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/atom-one-dark.min.css">
+<meta name="feature-doc-type" content="context">
+<title>FEATURE_NAME — Context</title>
 <style>
   :root {
     --bg: #1c1917;
     --surface: #292524;
     --surface-muted: #1f1d1c;
-    --surface-warn: #3d2e0f;
     --border: #44403c;
     --border-strong: #57534e;
     --accent: #f59e0b;
@@ -46,7 +72,6 @@
     --text-faint: #a8a29e;
     --code-bg: #1f1d1c;
     --link: #93c5fd;
-    --highlight: #3d2e0f;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -74,59 +99,20 @@
   a { color: var(--link); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  /* Layout: TOC + main + comments rail */
+  /* Layout: main + comments rail */
   .layout {
     display: grid;
-    grid-template-columns: 240px minmax(0, 900px) 1fr;
+    grid-template-columns: minmax(0, 760px) 1fr;
     column-gap: 24px;
     padding: 24px 28px;
-    max-width: 1500px;
+    max-width: 1200px;
     margin: 0 auto;
   }
   .layout.has-comments {
-    grid-template-columns: 240px minmax(0, 880px) 320px;
+    grid-template-columns: minmax(0, 720px) 320px;
   }
-
-  /* TOC */
-  nav.toc {
-    grid-column: 1;
-    position: sticky;
-    top: 24px;
-    align-self: start;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-    font-size: 0.92rem;
-  }
-  nav.toc h3 {
-    margin: 0 0 10px;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    letter-spacing: 0.05em;
-  }
-  nav.toc ul { list-style: none; margin: 0; padding: 0; }
-  nav.toc li { margin-bottom: 2px; }
-  nav.toc a {
-    display: block;
-    padding: 5px 10px;
-    color: var(--text-muted);
-    border-radius: 4px;
-    border-left: 2px solid transparent;
-  }
-  nav.toc a:hover {
-    background: var(--surface);
-    color: var(--text);
-    text-decoration: none;
-  }
-  nav.toc a.active {
-    color: var(--accent);
-    border-left-color: var(--accent);
-    background: var(--surface-muted);
-  }
-  nav.toc .sub { margin-left: 12px; font-size: 0.88em; }
-
-  main.document { grid-column: 2; min-width: 0; }
-  aside.comments-rail { grid-column: 3; display: none; }
+  main.document { grid-column: 1; min-width: 0; }
+  aside.comments-rail { grid-column: 2; display: none; }
   .layout.has-comments aside.comments-rail { display: block; }
 
   /* Header */
@@ -139,9 +125,9 @@
   header.doc-header .subtitle { margin: 0; color: var(--text-muted); font-size: 1rem; }
 
   /* Sections */
-  section { margin-bottom: 40px; scroll-margin-top: 24px; }
+  section { margin-bottom: 36px; scroll-margin-top: 24px; }
   section > h2 {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     margin: 0 0 14px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
@@ -149,8 +135,8 @@
     letter-spacing: -0.01em;
   }
   section h3 {
-    font-size: 1.05rem;
-    margin: 22px 0 8px;
+    font-size: 1.02rem;
+    margin: 20px 0 8px;
     font-weight: 600;
     color: var(--accent);
   }
@@ -158,119 +144,50 @@
   p:last-child { margin-bottom: 0; }
   ul, ol { margin: 0 0 12px; padding-left: 22px; }
   li { margin-bottom: 4px; }
-
-  /* Decisions list — numbered cards */
-  .decisions {
-    list-style: none;
-    counter-reset: decision;
-    padding: 0;
-    margin: 0;
+  blockquote {
+    margin: 12px 0;
+    padding: 8px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--surface-muted);
+    color: var(--text-muted);
   }
-  .decisions > li {
-    counter-increment: decision;
-    margin-bottom: 24px;
-    padding: 16px 20px;
+
+  /* Links list */
+  .link-list { list-style: none; padding: 0; margin: 0; }
+  .link-list li {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 0.95rem;
+  }
+  .link-list li:last-child { border-bottom: none; }
+  .link-list .label { color: var(--text-muted); margin-right: 6px; }
+
+  /* Open questions */
+  .questions { list-style: none; padding: 0; margin: 0; counter-reset: q; }
+  .questions li {
+    counter-increment: q;
+    padding: 10px 14px 10px 44px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
-    scroll-margin-top: 24px;
-  }
-  .decisions > li > h3 {
-    margin: 0 0 10px;
-    padding-left: 36px;
+    margin-bottom: 8px;
     position: relative;
-    color: var(--text);
-    font-size: 1.05rem;
   }
-  .decisions > li > h3::before {
-    content: counter(decision);
+  .questions li::before {
+    content: counter(q);
     position: absolute;
-    left: 0;
-    top: -2px;
-    width: 26px;
-    height: 26px;
-    background: var(--accent);
-    color: var(--bg);
+    left: 12px;
+    top: 10px;
+    width: 22px;
+    height: 22px;
+    background: var(--accent-soft);
+    color: var(--accent);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.85rem;
-  }
-
-  /* File structure groups */
-  .file-group {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 16px;
-    margin-bottom: 12px;
-  }
-  .file-group h3 {
-    margin: 0 0 8px;
-    font-size: 0.92rem;
-    color: var(--text-muted);
-  }
-  .file-list { list-style: none; padding: 0; margin: 0; font-size: 0.95rem; }
-  .file-list li { padding: 4px 0; border-bottom: 1px dashed var(--border); }
-  .file-list li:last-child { border-bottom: none; }
-  .file-list li code { font-size: 0.92em; }
-
-  /* Phase sections */
-  .phase-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  .phase-badge {
-    background: var(--accent-soft);
-    color: var(--accent);
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .phase-header h2 { margin: 0; border: none; padding: 0; font-size: 1.3rem; }
-
-  /* Checklist */
-  .checklist {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 16px;
-  }
-  .checklist li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 6px 0;
-    border-bottom: 1px dashed var(--border);
-    font-size: 0.95rem;
-  }
-  .checklist li:last-child { border-bottom: none; }
-  .checklist input[type="checkbox"] {
-    margin-top: 5px;
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent);
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .checklist .label { line-height: 1.5; }
-  .checklist input[type="checkbox"]:checked ~ .label {
-    text-decoration: line-through;
-    color: var(--text-faint);
-  }
-  .checklist h3 {
-    margin: 22px 0 8px;
-    font-size: 1rem;
-    color: var(--accent);
+    font-size: 0.78rem;
   }
 
   /* Comments / annotations */
@@ -423,89 +340,50 @@
 
 <div class="layout" id="layout">
 
-<!--
-  TOC — replace entries to match the actual section IDs in the plan.
-  Use href="#section-id" so the scroll-spy can highlight them.
--->
-<nav class="toc">
-  <h3>Contents</h3>
-  <ul>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#key-decisions">Key technical decisions</a></li>
-    <li><a href="#file-structure">File structure</a></li>
-    <li><a href="#phase-1">Phase 1 — Title</a></li>
-    <li><a href="#phase-2">Phase 2 — Title</a></li>
-    <li><a href="#qc">QC</a></li>
-    <li><a href="#checklist">Checklist</a></li>
-  </ul>
-</nav>
-
 <main class="document">
 
 <header class="doc-header">
   <h1>FEATURE_NAME</h1>
-  <p class="subtitle">Implementation plan</p>
+  <p class="subtitle">Context</p>
 </header>
 
 <!--
-  REPLACE all section content below with the real plan. Section IDs must
-  match the TOC entries above. Use <pre><code class="language-python">
-  (or bash, etc.) so highlight.js picks them up.
+  REPLACE all section content below with the real context. Keep the
+  section IDs stable so the markdown exporter can recognise them.
+  Omit any section that's genuinely empty rather than padding it.
 -->
 
-<section id="overview">
-  <h2>Overview</h2>
-  <p>One-paragraph summary of the plan.</p>
+<section id="problem-space">
+  <h2>Problem space and motivation</h2>
+  <p>Why this might be worth doing. What's broken or missing. What
+  conversations or observations triggered it.</p>
 </section>
 
-<section id="key-decisions">
-  <h2>Key technical decisions</h2>
-  <ol class="decisions">
-    <li id="decision-1">
-      <h3>Title of the first decision</h3>
-      <p>Rationale.</p>
-      <pre><code class="language-python">def example():
-    pass</code></pre>
-    </li>
-  </ol>
+<section id="related-work">
+  <h2>Related work</h2>
+  <p>Existing patterns or features that connect to this. Link to other
+  context or requirements docs when relevant.</p>
 </section>
 
-<section id="file-structure">
-  <h2>File structure</h2>
-  <div class="file-group">
-    <h3>New files</h3>
-    <ul class="file-list">
-      <li><code>path/to/file.py</code> — purpose.</li>
-    </ul>
-  </div>
+<section id="constraints">
+  <h2>Constraints and considerations</h2>
+  <p>What to watch for, dependencies, prior decisions that shape the
+  space.</p>
 </section>
 
-<section id="phase-1">
-  <div class="phase-header">
-    <span class="phase-badge">Phase 1</span>
-    <h2>Phase title</h2>
-  </div>
-  <h3>What's built</h3>
-  <p>...</p>
-  <h3>Files touched</h3>
-  <p>See "Modified files (Phase 1)" above.</p>
-  <h3>Tests</h3>
-  <ul><li>...</li></ul>
-  <h3>MR chain</h3>
-  <p>One MR titled <code>feat(&lt;FEATURE&gt;): phase 1</code>.</p>
-</section>
-
-<section id="qc">
-  <h2>QC</h2>
-  <p>See <code>CLAUDE.md</code> § "QC before each commit".</p>
-</section>
-
-<section id="checklist">
-  <h2>Checklist</h2>
-  <h3>Phase 1: Title</h3>
-  <ul class="checklist">
-    <li><input type="checkbox"><span class="label">Checklist item here.</span></li>
+<section id="links">
+  <h2>Links</h2>
+  <ul class="link-list">
+    <li><span class="label">Design doc:</span> <a href="#">title</a></li>
+    <li><span class="label">Slack:</span> <a href="#">thread</a></li>
   </ul>
+</section>
+
+<section id="open-questions">
+  <h2>Open questions</h2>
+  <ol class="questions">
+    <li>What's worth resolving when requirements get written?</li>
+  </ol>
 </section>
 
 </main>
@@ -529,20 +407,14 @@
 
 <footer class="actions">
   <div class="status">
-    <span class="count" id="footer-count">0</span> comments ·
-    <span class="count" id="checked-count">0</span> / <span id="total-checks">0</span> checked
+    <span class="count" id="footer-count">0</span> comments
   </div>
   <button class="copy-btn" id="copy-btn" disabled>Copy comments</button>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/python.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/bash.min.js"></script>
-<script>hljs.highlightAll();</script>
-
 <script>
   // REPLACE: doc identifier in the copied-responses payload.
-  const docId = 'docs/features/<FEATURE>/plan';
+  const docId = 'docs/features/<FEATURE>/context';
   const comments = [];
   let nextId = 1;
   let pendingSelection = null;
@@ -658,28 +530,6 @@
       alert('Copy failed: ' + err.message);
     }
   });
-
-  // Checklist progress
-  const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
-  document.getElementById('total-checks').textContent = checkboxes.length;
-  function updateChecked() {
-    const checked = Array.from(checkboxes).filter(c => c.checked).length;
-    document.getElementById('checked-count').textContent = checked;
-  }
-  checkboxes.forEach(cb => cb.addEventListener('change', updateChecked));
-
-  // TOC scroll-spy
-  const sections = document.querySelectorAll('main.document section[id]');
-  const tocLinks = document.querySelectorAll('nav.toc a');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.id;
-        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
-      }
-    });
-  }, { rootMargin: '-20% 0px -70% 0px' });
-  sections.forEach(s => observer.observe(s));
 </script>
 
 </body>

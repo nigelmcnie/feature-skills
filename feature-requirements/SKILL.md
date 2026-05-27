@@ -61,13 +61,7 @@ can see it's being worked on.
 
 If there is no `features.md`, skip this step.
 
-## Step 3: Load the brief
-
-Check for a project override at `docs/feature-skill-briefs/requirements.md`
-and read it if it exists. Otherwise, read the bundled brief at `brief.md`
-in this skill's directory.
-
-## Step 4: Read context
+## Step 3: Read context
 
 Read the following:
 - `CLAUDE.md` (architecture and conventions)
@@ -80,13 +74,63 @@ Read the following:
 - Any other design docs in the repo that look relevant to the feature.
   Don't restrict yourself to the repo root — explore anywhere that may help.
 
-## Step 5: Draft
+## Step 4: Draft
 
-Write the requirements document to `docs/features/<FEATURE>/requirements.md`.
+Write the requirements document to `docs/features/<FEATURE>/requirements.md`
+with the following structure:
 
-Follow the structure and guidance in the brief.
+- **Problem**: what's broken or missing, with concrete examples.
+- **Vision**: one-sentence description of the solved state.
+- **User stories**: who benefits and how — every story carries a concrete
+  scenario, not just abstract desire.
+- **Data model** (if relevant): what's stored and how it relates to the
+  existing schema; relationships, not exact column types.
+- **Technical approach**: high-level how, not implementation detail.
+- **Alternatives considered** (optional): approaches discussed but not
+  chosen, with reasoning. Skip the section if the user pre-chose the
+  approach and no real alternatives came up — don't fabricate
+  alternatives to fill space. Every alternative must be grounded
+  (discussed with user, established by a design doc, or an obvious
+  known pattern); inline the source.
+- **Delivery phases**: ordered increments that each deliver testable
+  value; each phase becomes one MR.
+- **Indicative implementation notes** (optional, at the bottom):
+  plan-level detail worth carrying forward without polluting the
+  requirements body — see "Requirements vs plan" below.
 
-## Step 6: Present and review in parallel
+### Requirements vs plan
+
+Requirements answer **what** and **why**. The plan answers **how**.
+
+**Belongs in requirements:**
+- Problem and desired outcome.
+- User-visible behaviour and constraints.
+- Data model relationships (that something is stored, not the schema).
+- Architectural shape at "we'll do X, not Y" level.
+- Why specific tradeoffs were made.
+
+**Belongs in the plan:**
+- Function signatures, schemas, exact APIs.
+- File paths and module structure.
+- Order of operations, phases, test coverage.
+- Code-level patterns and snippets.
+
+When in doubt, keep requirements abstract. If a piece of plan-level
+detail feels too important to lose, put it in **Indicative
+implementation notes** at the bottom of `requirements.md`. The plan
+skill reads this section to carry forward useful context.
+
+### Tradeoff guidance
+
+- Prefer simplicity over flexibility. Build for the current need.
+- Prefer extending existing patterns over introducing new abstractions.
+- Privacy and security are constraints, not afterthoughts. Flag anything
+  that stores user data or crosses trust boundaries.
+- You can propose deferring part of a feature — either as a later phase
+  or as a new entry in the feature tracker. Not everything needs to be
+  in scope.
+
+## Step 5: Present and review in parallel
 
 Tell the user the draft is ready for their review. Spawn a reviewer subagent
 using the Agent tool with `run_in_background: true` so it runs while the
@@ -110,7 +154,7 @@ Prompt for the reviewer:
 >
 > Be specific. Reference sections by name. Focus on substance, not style.
 
-## Step 7: Produce feedback synthesis document
+## Step 6: Produce feedback synthesis document
 
 For each piece of reviewer feedback, decide your take:
 
@@ -121,8 +165,8 @@ For each piece of reviewer feedback, decide your take:
   options are:
   1. **Accept and remove**: it's not load-bearing context
   2. **Move to Indicative implementation notes**: useful for planning,
-     but doesn't belong in the requirements body (see the brief's
-     "Requirements vs plan" section)
+     but doesn't belong in the requirements body (see "Requirements vs
+     plan" in Step 4)
   3. **Disagree**: it's genuinely a requirement constraint, not a plan
      choice
 
@@ -157,7 +201,7 @@ The trailing `&` backgrounds the browser process so the agent doesn't wait.
 Tell the user the synthesis doc is open and that you'll wait for them
 to click **Copy responses** in the HTML and paste the JSON blob back.
 
-## Step 7b: Integrate feedback
+## Step 6b: Integrate feedback
 
 The user clicks **Copy responses** in the HTML and pastes a JSON blob
 in chat. Format:
@@ -202,7 +246,7 @@ mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
 Remove any resolved inline notes from `requirements.md` once decisions are
 captured. Summarise the changes to the user.
 
-## Step 8: Iterate
+## Step 7: Iterate
 
 If the user adds inline notes directly to the requirements document and asks you to
 integrate them, or asks to go around the loop again:
@@ -210,19 +254,19 @@ integrate them, or asks to go around the loop again:
 2. Incorporate inline notes into the document properly
 3. Re-spawn the reviewer subagent on the updated content
 4. Produce a new synthesis document (`requirements-feedback-2.md`, etc.) using the same
-   format as step 7
+   format as Step 6
 5. Follow the same fill-in → integrate flow
 
 Repeat as many times as the user wants. The user signals approval conversationally
 ("looks good", "approved", "let's plan").
 
-## Step 9: Handoff
+## Step 8: Handoff
 
 When the user signals approval — any of: "looks good", "approved", "let's plan",
 "ready to plan", "move on", "time to plan", or similar:
 
 1. Check for any remaining `requirements-feedback-N.md` files. If found, integrate
-   them (per Step 7b, including capturing design notes) before proceeding.
+   them (per Step 6b, including capturing design notes) before proceeding.
 2. Commit `docs/features/<FEATURE>/requirements.md` with the message
    `docs(<FEATURE>): add requirements` and push.
 3. Automatically invoke `/feature-plan <FEATURE>` without waiting to be asked.

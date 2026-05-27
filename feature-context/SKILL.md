@@ -12,7 +12,7 @@ This is the historical ledger a future requirements session will draw on — not
 requirements itself.
 
 The primary source of context is the **current conversation**: distill what's
-been discussed into the structure defined by the brief.
+been discussed into the structure outlined in Step 3.
 
 ## Step 1: Establish the feature name
 
@@ -33,15 +33,9 @@ the `features.md` row after — it's cheap to fix. Don't pre-validate by
 asking.
 
 Store the chosen name as FEATURE. Mention the name in your "done" message
-at Step 7 so the user knows what you chose.
+at Step 6 so the user knows what you chose.
 
-## Step 2: Load the brief
-
-Check for a project override at `docs/feature-skill-briefs/context.md`
-and read it if it exists. Otherwise, read the bundled brief at `brief.md`
-in this skill's directory.
-
-## Step 3: Read context
+## Step 2: Read context
 
 Read:
 - `CLAUDE.md` (architecture and conventions)
@@ -49,15 +43,32 @@ Read:
   avoid duplicating
 - Any specific docs the user has pointed to in the conversation
 
-## Step 4: Draft context.md
+## Step 3: Draft context.md
 
-Write `docs/features/<FEATURE>/context.md` following the structure in the brief.
+Write `docs/features/<FEATURE>/context.md` with the following structure:
+
+- **Problem space and motivation**: why this might be worth doing, what's
+  broken or missing, what conversations or observations triggered it.
+- **Related work**: existing patterns or features in the codebase that
+  connect to this; link to other `context.md` / `requirements.md` when
+  relevant.
+- **Constraints and considerations**: what to watch for, dependencies,
+  prior decisions that shape the space.
+- **Links**: design docs, customer reports, Slack threads, tickets,
+  external references.
+- **Open questions**: things worth resolving when requirements get
+  written.
 
 Primary source is the recent conversation. Distill — do not transcribe. If the
 user discussed a problem, the rationale for solving it, related work, or
 constraints, those go in. Conversational filler does not.
 
-## Step 5: Update features.md (if it exists)
+Context is not requirements: keep user stories, technical approaches, phase
+breakdowns, and wishlist features out. Capture *why* this came up, not just
+*what* was discussed. Acknowledge unknowns — a clear "open question" beats
+a half-formed guess.
+
+## Step 4: Update features.md (if it exists)
 
 If `features.md` exists at the repo root, add a row to the **Available** table
 with the feature name and a brief one-line note. Do not move anything to In
@@ -66,12 +77,12 @@ Progress — this feature is being captured for later, not started now.
 If `features.md` does not exist, skip this step silently. Do not offer to
 scaffold it — that's a separate concern.
 
-## Step 6: Commit and push
+## Step 5: Commit and push
 
 Commit `docs/features/<FEATURE>/context.md` (and `features.md` if updated)
 with the message `docs: capture <FEATURE> context` and push.
 
-## Step 7: Done
+## Step 6: Done
 
 Tell the user the context is captured and that `/feature <FEATURE>` will pick
 it up when they're ready to work on it. Then return to whatever the

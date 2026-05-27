@@ -38,13 +38,7 @@ git branch --show-current
 
 Do not silently switch branches — uncommitted work might be lost.
 
-## Step 1: Load the brief
-
-Check for a project override at `docs/feature-skill-briefs/plan.md` and
-read it if it exists. Otherwise, read the bundled brief at `brief.md` in
-this skill's directory.
-
-## Step 2: Read context
+## Step 1: Read context
 
 Read the following files:
 - `docs/features/$ARGUMENTS/requirements.md` (approved requirements) —
@@ -55,17 +49,88 @@ Read the following files:
 - All source modules referenced in the requirements' technical approach
 - Existing test files to understand testing patterns
 
-## Step 3: Draft
+## Step 2: Draft
 
 Plans are produced in **two formats** during Phase 2A. Markdown is
 canonical (committed to the repo, source of truth for the workflow,
 read by the implementing agent). HTML is the rich review surface.
 
+### Plan structure
+
+A good implementation plan contains:
+
+- **Overview**: what we're building, in one paragraph.
+- **Key technical decisions**: choices that shape the implementation,
+  with rationale. Include code snippets showing key interfaces.
+- **File structure**: what files are created or modified.
+- **Phase breakdown**: for each delivery phase from the requirements:
+  - What's built
+  - Which files are touched
+  - Key code snippets (interfaces, data structures, function signatures)
+  - What tests are needed
+  - MR chain (each phase = one MR, invoked separately)
+- **Checklist**: a flat checklist of all steps across all phases at the
+  bottom of the document. The implementing agent checks items off as
+  it works.
+
+### Detail level
+
+The plan should be detailed enough that an implementing agent (which
+may be a different, less capable model) can follow it without making
+significant design decisions. Include:
+
+- Function signatures with type hints.
+- Schema changes.
+- Key conditional logic ("if X, then Y; otherwise Z").
+- Test descriptions (what's tested, not full test code).
+
+Do NOT include:
+
+- Full implementation code (that's the implementing agent's job).
+- Exact line numbers (files change).
+- Style decisions (formatter handles them).
+
+### Phasing
+
+- Each phase results in a separate MR.
+- Each phase is independently testable.
+- Each phase is implemented by a separate invocation of
+  `/feature-implement`.
+- The implementing agent checks off items in this plan as it works.
+- The plan is a living document — it gets updated if the approach
+  changes during implementation. If a deviation is significant, pause
+  and get the human to review the revised plan before continuing.
+
+### Checklist format
+
+The flat checklist at the bottom **must** use phase headers so the
+implementing agent can identify phase boundaries unambiguously:
+
+```markdown
+## Checklist
+
+### Phase 1: <name>
+- [ ] Step A
+- [ ] Step B
+
+### Phase 2: <name>
+- [ ] Step C
+- [ ] Step D
+```
+
+Items within each phase are ordered as they will be implemented.
+
+### Quality control
+
+Reference `CLAUDE.md` for quality control steps rather than hardcoding
+them. Instruct the implementing agent to follow whatever `CLAUDE.md`
+says at implementation time.
+
 ### Pass 1 — Write the markdown plan
 
-Write to `docs/features/$ARGUMENTS/plan.md`.
+Write to `docs/features/$ARGUMENTS/plan.md`, following the structure
+and detail-level guidance above. Include:
 
-Follow the structure and guidance in the brief. Include:
 - Key technical decisions with code snippets
 - File structure showing what's created/modified
 - Phase breakdown with test descriptions and MR chain
@@ -99,7 +164,7 @@ google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html &
 
 The trailing `&` backgrounds the browser process so the agent doesn't wait.
 
-## Step 4: Present and review in parallel
+## Step 3: Present and review in parallel
 
 Tell the user the plan is ready for their review. Spawn a reviewer subagent
 using the Agent tool with `run_in_background: true` so it runs while the
@@ -123,7 +188,7 @@ Prompt for the reviewer:
 >
 > Be specific. Reference sections by name.
 
-## Step 5: Process reviewer feedback inline
+## Step 4: Process reviewer feedback inline
 
 When the reviewer returns, triage each item into one of:
 
@@ -179,12 +244,12 @@ capture them in a "Design notes" section of
 `docs/features/<FEATURE>/requirements.md`. Keep entries to one or two
 lines, cite the review round.
 
-After applying changes to `plan.md`, **re-render the HTML** (Step 3 Pass 2)
+After applying changes to `plan.md`, **re-render the HTML** (Step 2 Pass 2)
 to keep `plan.html` in sync. The user may want to reload it.
 
 Summarise what was applied to the user.
 
-## Step 6: Iterate
+## Step 5: Iterate
 
 If the user provides further feedback via any of:
 - Inline `note: ...` annotations in `plan.md`
@@ -197,18 +262,18 @@ Then:
 3. Re-render `plan.html` from the updated markdown
 4. (If the changes are substantial) re-spawn the reviewer subagent on the
    updated content
-5. Follow Step 5 (triage and process inline) for any new reviewer feedback
+5. Follow Step 4 (triage and process inline) for any new reviewer feedback
 
 Repeat until the user approves conversationally.
 
-## Step 7: Handoff
+## Step 6: Handoff
 
 When the user signals approval — any of: "looks good", "approved", "let's
 implement", "ready to implement", "start building", "time to implement", or
 similar:
 
 1. Check for any remaining `plan-feedback-N.md` files. If found, integrate
-   them (per Step 5b) before proceeding.
+   them (per Step 4) before proceeding.
 2. Commit `docs/features/<FEATURE>/plan.md` and `docs/features/<FEATURE>/requirements.md`
    (the latter may have been updated with design notes) with the message
    `docs(<FEATURE>): add implementation plan` and push.

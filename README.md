@@ -52,7 +52,11 @@ sub-skill to invoke.
 ## Design notes
 
 - **Cross-skill conventions** live in `feature/feedback-template.md` and the
-  per-skill `brief.md` files.
+  doc templates at `feature/*-template.html`. Structural guidance for each
+  artifact type (context, requirements, plan, features tracker) is carried
+  in the HTML template comments; load-bearing principles
+  (Requirements-vs-plan, Indicative notes convention, etc.) are inlined
+  into each skill's `SKILL.md`.
 - **Reviewer subagents** are spawned at requirements / plan / review / iterate.
   All skills here set `disable-model-invocation: true` so they can use the
   Agent tool (subagents can't spawn subagents).

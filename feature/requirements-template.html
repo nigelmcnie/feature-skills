@@ -1,23 +1,77 @@
 <!--
-  Implementation Plan Template — HTML version.
+  Requirements Template — HTML version.
 
-  This file is a reference template for generating HTML plan docs.
-  feature-plan produces a plan.html alongside the canonical plan.md.
+  This file is a reference template for generating HTML requirements docs.
+  feature-requirements produces a requirements.html in the developer-scoped
+  store (~/.claude/feature-docs/<project>/<feature>/requirements.html).
+
+  Requirements answer **what** and **why**. The plan answers **how**.
 
   HOW TO USE (for the agent):
-    1. Copy this entire file as a starting point for the new plan HTML.
-    2. Replace the contents of <title>, the <h1>, and the subtitle with
-       the real feature info.
-    3. Replace the TOC entries to match the actual sections in the plan.
-    4. Replace the example sections with the real ones:
-         Overview, Key technical decisions, File structure,
-         Phase 1..N (with phase headers), QC, Checklist.
-    5. Render code blocks as <pre><code class="language-python">...</code></pre>
-       (highlight.js will syntax-highlight on load).
-    6. Render the checklist as <li><input type="checkbox"><span class="label">...</span></li>.
-    7. Update the JS `docId` constant.
-    8. Keep all CSS and JavaScript verbatim.
-    9. Save to ~/.claude/feature-docs/<project>/<feature>/plan.html.
+    1. Copy this entire file as a starting point for the new requirements
+       HTML.
+    2. Replace the contents of <title>, the <h1>, and the subtitle.
+    3. Replace the TOC entries to match the actual sections present. Omit
+       any optional section that you genuinely don't have content for
+       (Data model, Alternatives considered, Indicative implementation
+       notes, Design notes) — don't pad.
+    4. Replace example sections with real content. Keep section IDs stable
+       so the markdown exporter can recognise them.
+    5. Render code references as <code>inline</code> or
+       <pre><code class="language-python">block</code></pre>.
+    6. Update the JS `docId` constant — e.g. docs/features/<FEATURE>/requirements.
+    7. Keep all CSS and JavaScript verbatim.
+    8. Save to ~/.claude/feature-docs/<project>/<feature>/requirements.html.
+
+  Structure (from the requirements brief, inlined here):
+    - Problem: what's broken or missing, with concrete examples.
+    - Vision: one-sentence description of the solved state.
+    - User stories: who benefits and how. Every story needs a concrete
+      scenario, not just abstract desire.
+    - Data model (optional): what's stored and how it relates to the
+      existing schema. Relationships, not exact schemas.
+    - Technical approach: high-level how. "We'll do X, not Y." No
+      function signatures or file paths — those belong in the plan.
+    - Alternatives considered (optional): approaches discussed but not
+      chosen, with reasoning. Skip if no real alternatives came up;
+      don't fabricate alternatives to fill the section. Every alternative
+      must be grounded — discussed with user, established by a design
+      doc, or an obvious known pattern in the codebase. Inline the
+      source ("discussed with user", "from design doc X").
+    - Delivery phases: ordered increments that each deliver testable
+      value. Each phase becomes one MR.
+    - Indicative implementation notes (optional, at the bottom): plan-
+      level detail worth carrying forward without polluting the
+      requirements body. The plan skill reads this section.
+    - Design notes (optional, populated during iteration): decisions
+      and reasoning captured from review rounds.
+
+  Requirements vs plan — what belongs where:
+    Belongs in requirements:
+      - Problem and desired outcome.
+      - User-visible behaviour and constraints.
+      - Data model relationships (that something is stored, not the
+        schema).
+      - Architectural shape at "we'll do X, not Y" level.
+      - Why specific tradeoffs were made.
+    Belongs in the plan:
+      - Function signatures, schemas, exact APIs.
+      - File paths and module structure.
+      - Order of operations, phases, test coverage.
+      - Code-level patterns and snippets.
+    When in doubt, keep requirements abstract. If a piece of plan-level
+    detail feels too important to lose, put it in **Indicative
+    implementation notes** at the bottom.
+
+  Tradeoff guidance:
+    - Prefer simplicity over flexibility. Build for the current need.
+    - Prefer extending existing patterns over introducing new
+      abstractions.
+    - Privacy and security are constraints, not afterthoughts. Flag
+      anything that stores user data or crosses trust boundaries.
+    - Propose deferring part of a feature if it doesn't need to be in
+      scope — either as a later phase or as a new entry in the feature
+      tracker.
 
   Click-to-comment: user selects text in the rendered HTML, a "Comment"
   button appears, they leave a marginalia comment. "Copy comments" emits
@@ -28,15 +82,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
-<meta name="feature-doc-type" content="plan">
-<title>FEATURE_NAME — Implementation Plan</title>
+<meta name="feature-doc-type" content="requirements">
+<title>FEATURE_NAME — Requirements</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/atom-one-dark.min.css">
 <style>
   :root {
     --bg: #1c1917;
     --surface: #292524;
     --surface-muted: #1f1d1c;
-    --surface-warn: #3d2e0f;
     --border: #44403c;
     --border-strong: #57534e;
     --accent: #f59e0b;
@@ -46,7 +99,6 @@
     --text-faint: #a8a29e;
     --code-bg: #1f1d1c;
     --link: #93c5fd;
-    --highlight: #3d2e0f;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -77,14 +129,14 @@
   /* Layout: TOC + main + comments rail */
   .layout {
     display: grid;
-    grid-template-columns: 240px minmax(0, 900px) 1fr;
+    grid-template-columns: 220px minmax(0, 820px) 1fr;
     column-gap: 24px;
     padding: 24px 28px;
-    max-width: 1500px;
+    max-width: 1400px;
     margin: 0 auto;
   }
   .layout.has-comments {
-    grid-template-columns: 240px minmax(0, 880px) 320px;
+    grid-template-columns: 220px minmax(0, 780px) 320px;
   }
 
   /* TOC */
@@ -123,7 +175,6 @@
     border-left-color: var(--accent);
     background: var(--surface-muted);
   }
-  nav.toc .sub { margin-left: 12px; font-size: 0.88em; }
 
   main.document { grid-column: 2; min-width: 0; }
   aside.comments-rail { grid-column: 3; display: none; }
@@ -158,73 +209,85 @@
   p:last-child { margin-bottom: 0; }
   ul, ol { margin: 0 0 12px; padding-left: 22px; }
   li { margin-bottom: 4px; }
+  blockquote {
+    margin: 12px 0;
+    padding: 8px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
 
-  /* Decisions list — numbered cards */
-  .decisions {
-    list-style: none;
-    counter-reset: decision;
-    padding: 0;
+  /* Vision callout */
+  .vision-statement {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text);
+    background: var(--surface);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 4px;
     margin: 0;
   }
-  .decisions > li {
-    counter-increment: decision;
-    margin-bottom: 24px;
-    padding: 16px 20px;
+
+  /* User stories — card list */
+  .stories { list-style: none; padding: 0; margin: 0; }
+  .stories > li {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
-    scroll-margin-top: 24px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
   }
-  .decisions > li > h3 {
-    margin: 0 0 10px;
-    padding-left: 36px;
-    position: relative;
-    color: var(--text);
-    font-size: 1.05rem;
+  .stories .actor {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 4px;
+    font-weight: 600;
   }
-  .decisions > li > h3::before {
-    content: counter(decision);
-    position: absolute;
-    left: 0;
-    top: -2px;
-    width: 26px;
-    height: 26px;
-    background: var(--accent);
-    color: var(--bg);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
+  .stories .want { font-weight: 500; margin-bottom: 6px; }
+  .stories .scenario {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+    margin-top: 6px;
+  }
+  .stories .scenario::before {
+    content: "Scenario: ";
+    color: var(--text-faint);
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  /* File structure groups */
-  .file-group {
-    background: var(--surface);
+  /* Alternatives list — labelled with source */
+  .alternatives { list-style: none; padding: 0; margin: 0; }
+  .alternatives > li {
+    background: var(--surface-muted);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 12px 16px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
-  .file-group h3 {
-    margin: 0 0 8px;
-    font-size: 0.92rem;
-    color: var(--text-muted);
+  .alternatives .alt-title { font-weight: 600; margin-bottom: 4px; }
+  .alternatives .alt-source {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
   }
-  .file-list { list-style: none; padding: 0; margin: 0; font-size: 0.95rem; }
-  .file-list li { padding: 4px 0; border-bottom: 1px dashed var(--border); }
-  .file-list li:last-child { border-bottom: none; }
-  .file-list li code { font-size: 0.92em; }
+  .alternatives .alt-reason { color: var(--text-muted); font-size: 0.95rem; }
 
-  /* Phase sections */
+  /* Phase items */
   .phase-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
   }
   .phase-badge {
     background: var(--accent-soft);
@@ -237,40 +300,46 @@
     text-transform: uppercase;
     white-space: nowrap;
   }
-  .phase-header h2 { margin: 0; border: none; padding: 0; font-size: 1.3rem; }
+  .phase-header h3 { margin: 0; color: var(--text); font-size: 1.05rem; }
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
 
-  /* Checklist */
-  .checklist {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 16px;
+  /* Indicative notes — visually distinct as plan-level material */
+  section#indicative-notes,
+  section#design-notes {
+    background: var(--surface-muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: 6px;
+    padding: 18px 22px;
   }
-  .checklist li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 6px 0;
-    border-bottom: 1px dashed var(--border);
-    font-size: 0.95rem;
+  section#indicative-notes > h2,
+  section#design-notes > h2 {
+    border-bottom: none;
+    padding-bottom: 0;
+    color: var(--text-muted);
   }
-  .checklist li:last-child { border-bottom: none; }
-  .checklist input[type="checkbox"] {
-    margin-top: 5px;
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent);
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .checklist .label { line-height: 1.5; }
-  .checklist input[type="checkbox"]:checked ~ .label {
-    text-decoration: line-through;
+  section#indicative-notes::before {
+    content: "Plan-level material — carried forward for /feature-plan";
+    display: block;
+    font-size: 0.78rem;
     color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
   }
-  .checklist h3 {
-    margin: 22px 0 8px;
-    font-size: 1rem;
-    color: var(--accent);
+  section#design-notes::before {
+    content: "Decisions captured during review iteration";
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
   }
 
   /* Comments / annotations */
@@ -424,19 +493,21 @@
 <div class="layout" id="layout">
 
 <!--
-  TOC — replace entries to match the actual section IDs in the plan.
-  Use href="#section-id" so the scroll-spy can highlight them.
+  TOC — keep only the sections that actually appear in the doc. Section
+  IDs in main.document must match these hrefs.
 -->
 <nav class="toc">
   <h3>Contents</h3>
   <ul>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#key-decisions">Key technical decisions</a></li>
-    <li><a href="#file-structure">File structure</a></li>
-    <li><a href="#phase-1">Phase 1 — Title</a></li>
-    <li><a href="#phase-2">Phase 2 — Title</a></li>
-    <li><a href="#qc">QC</a></li>
-    <li><a href="#checklist">Checklist</a></li>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#vision">Vision</a></li>
+    <li><a href="#user-stories">User stories</a></li>
+    <li><a href="#data-model">Data model</a></li>
+    <li><a href="#technical-approach">Technical approach</a></li>
+    <li><a href="#alternatives">Alternatives considered</a></li>
+    <li><a href="#delivery-phases">Delivery phases</a></li>
+    <li><a href="#indicative-notes">Indicative notes</a></li>
+    <li><a href="#design-notes">Design notes</a></li>
   </ul>
 </nav>
 
@@ -444,68 +515,81 @@
 
 <header class="doc-header">
   <h1>FEATURE_NAME</h1>
-  <p class="subtitle">Implementation plan</p>
+  <p class="subtitle">Requirements</p>
 </header>
 
 <!--
-  REPLACE all section content below with the real plan. Section IDs must
-  match the TOC entries above. Use <pre><code class="language-python">
-  (or bash, etc.) so highlight.js picks them up.
+  REPLACE all section content below. Section IDs are stable; omit a
+  section's <section> entirely (and its TOC entry) if you have nothing
+  real to put in it.
 -->
 
-<section id="overview">
-  <h2>Overview</h2>
-  <p>One-paragraph summary of the plan.</p>
+<section id="problem">
+  <h2>Problem</h2>
+  <p>What's broken or missing. Concrete examples — code paths, error
+  messages, customer reports.</p>
 </section>
 
-<section id="key-decisions">
-  <h2>Key technical decisions</h2>
-  <ol class="decisions">
-    <li id="decision-1">
-      <h3>Title of the first decision</h3>
-      <p>Rationale.</p>
-      <pre><code class="language-python">def example():
-    pass</code></pre>
+<section id="vision">
+  <h2>Vision</h2>
+  <p class="vision-statement">One-sentence description of the solved
+  state.</p>
+</section>
+
+<section id="user-stories">
+  <h2>User stories</h2>
+  <ol class="stories">
+    <li>
+      <div class="actor">As a [role]</div>
+      <div class="want">I want [capability]</div>
+      <div class="scenario">Concrete situation in which this matters.</div>
     </li>
   </ol>
 </section>
 
-<section id="file-structure">
-  <h2>File structure</h2>
-  <div class="file-group">
-    <h3>New files</h3>
-    <ul class="file-list">
-      <li><code>path/to/file.py</code> — purpose.</li>
-    </ul>
+<section id="data-model">
+  <h2>Data model</h2>
+  <p>What's stored and how it relates to the existing schema. Describe
+  relationships, not exact column types — those belong in the plan.</p>
+</section>
+
+<section id="technical-approach">
+  <h2>Technical approach</h2>
+  <p>High-level how. "We'll do X, not Y" with reasoning.</p>
+</section>
+
+<section id="alternatives">
+  <h2>Alternatives considered</h2>
+  <ol class="alternatives">
+    <li>
+      <div class="alt-title">Alternative name</div>
+      <div class="alt-source">Source: discussed with user</div>
+      <div class="alt-reason">Why it wasn't chosen.</div>
+    </li>
+  </ol>
+</section>
+
+<section id="delivery-phases">
+  <h2>Delivery phases</h2>
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-badge">Phase 1</span>
+      <h3>Phase title</h3>
+    </div>
+    <p>What this phase delivers, in terms of testable user value.</p>
   </div>
 </section>
 
-<section id="phase-1">
-  <div class="phase-header">
-    <span class="phase-badge">Phase 1</span>
-    <h2>Phase title</h2>
-  </div>
-  <h3>What's built</h3>
-  <p>...</p>
-  <h3>Files touched</h3>
-  <p>See "Modified files (Phase 1)" above.</p>
-  <h3>Tests</h3>
-  <ul><li>...</li></ul>
-  <h3>MR chain</h3>
-  <p>One MR titled <code>feat(&lt;FEATURE&gt;): phase 1</code>.</p>
+<section id="indicative-notes">
+  <h2>Indicative implementation notes</h2>
+  <p>Plan-level detail worth carrying forward. The plan skill reads this
+  section to seed the implementation plan.</p>
 </section>
 
-<section id="qc">
-  <h2>QC</h2>
-  <p>See <code>CLAUDE.md</code> § "QC before each commit".</p>
-</section>
-
-<section id="checklist">
-  <h2>Checklist</h2>
-  <h3>Phase 1: Title</h3>
-  <ul class="checklist">
-    <li><input type="checkbox"><span class="label">Checklist item here.</span></li>
-  </ul>
+<section id="design-notes">
+  <h2>Design notes</h2>
+  <p>Decisions and reasoning captured from review iteration rounds. Cite
+  the round (e.g. "round 1").</p>
 </section>
 
 </main>
@@ -529,8 +613,7 @@
 
 <footer class="actions">
   <div class="status">
-    <span class="count" id="footer-count">0</span> comments ·
-    <span class="count" id="checked-count">0</span> / <span id="total-checks">0</span> checked
+    <span class="count" id="footer-count">0</span> comments
   </div>
   <button class="copy-btn" id="copy-btn" disabled>Copy comments</button>
 </footer>
@@ -542,7 +625,7 @@
 
 <script>
   // REPLACE: doc identifier in the copied-responses payload.
-  const docId = 'docs/features/<FEATURE>/plan';
+  const docId = 'docs/features/<FEATURE>/requirements';
   const comments = [];
   let nextId = 1;
   let pendingSelection = null;
@@ -658,15 +741,6 @@
       alert('Copy failed: ' + err.message);
     }
   });
-
-  // Checklist progress
-  const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
-  document.getElementById('total-checks').textContent = checkboxes.length;
-  function updateChecked() {
-    const checked = Array.from(checkboxes).filter(c => c.checked).length;
-    document.getElementById('checked-count').textContent = checked;
-  }
-  checkboxes.forEach(cb => cb.addEventListener('change', updateChecked));
 
   // TOC scroll-spy
   const sections = document.querySelectorAll('main.document section[id]');

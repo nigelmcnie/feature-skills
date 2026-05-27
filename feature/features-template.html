@@ -1,0 +1,297 @@
+<!--
+  Features Tracker Template — HTML version.
+
+  This file is a reference template for the project-level feature tracker.
+  Lives at ~/.claude/feature-docs/<project>/features.html.
+
+  HOW TO USE (for the agent):
+    1. Copy this entire file as a starting point when initialising a new
+       tracker.
+    2. Replace the contents of <title>, the <h1>, and the <p.subtitle> with
+       the project name.
+    3. Populate the In Progress and Available tables with real rows.
+       Empty tables are fine — leave them with no <tbody> rows.
+    4. Optional sections (Suggested order, Done) can be removed entirely
+       if the project doesn't have them. Don't pad with placeholder
+       content.
+    5. When linking a feature row to its docs, prefer relative `file://`
+       paths to ~/.claude/feature-docs/<project>/<feature>/context.html
+       so the user can click through from the rendered page. Linking is
+       optional — leave the cell as plain text if no doc exists yet.
+    6. Save to ~/.claude/feature-docs/<project>/features.html.
+
+  Updates to the tracker:
+    - feature-context adds rows to Available.
+    - feature-requirements claims a row by moving it from Available to
+      In Progress with an Owner.
+    - feature-review moves a shipped row to Done with an Outcome cell.
+
+  v1 deliberately uses static HTML tables — no JS filters, no sortable
+  columns. Reimagine for the webapp era.
+
+  No click-to-comment widget — this is a tracker, not a discussion doc.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="dark">
+<meta name="feature-doc-type" content="features">
+<title>PROJECT_NAME — Features</title>
+<style>
+  :root {
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-muted: #1f1d1c;
+    --surface-active: #2d2a26;
+    --border: #44403c;
+    --border-strong: #57534e;
+    --accent: #f59e0b;
+    --accent-soft: #92400e;
+    --accent-done: #4ade80;
+    --accent-done-soft: #14532d;
+    --text: #fafaf9;
+    --text-muted: #d6d3d1;
+    --text-faint: #a8a29e;
+    --code-bg: #1f1d1c;
+    --link: #93c5fd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 18px;
+    padding: 24px 28px 60px;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.88em; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  header.page-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  header.page-header h1 { margin: 0 0 4px; font-size: 1.7rem; font-weight: 600; }
+  header.page-header .subtitle { margin: 0; color: var(--text-muted); font-size: 1rem; }
+
+  section { margin-bottom: 40px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-size: 1.3rem;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section > h2 .count {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+  section > p.section-blurb {
+    color: var(--text-faint);
+    font-size: 0.92rem;
+    margin: 0 0 12px;
+  }
+
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+
+  /* Tables */
+  table.features {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.95rem;
+  }
+  table.features thead th {
+    background: var(--surface-muted);
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  table.features tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.features tbody tr:last-child td { border-bottom: none; }
+  table.features tbody tr:hover { background: var(--surface-active); }
+  table.features td.feature-name {
+    font-weight: 600;
+    color: var(--text);
+    width: 26%;
+  }
+  table.features td.feature-owner {
+    color: var(--accent);
+    font-size: 0.9rem;
+    width: 14%;
+    white-space: nowrap;
+  }
+  table.features td.feature-notes {
+    color: var(--text-muted);
+  }
+  table.features td.feature-outcome {
+    color: var(--text-muted);
+  }
+  table.features tr.empty td {
+    color: var(--text-faint);
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* Section accents */
+  section#in-progress > h2 { color: var(--text); }
+  section#in-progress > h2 .count { color: var(--accent); border-color: var(--accent-soft); }
+  section#done > h2 .count { color: var(--accent-done); border-color: var(--accent-done-soft); }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header class="page-header">
+  <h1>PROJECT_NAME — Features</h1>
+  <p class="subtitle">Track what's being worked on and what's queued.</p>
+</header>
+
+<!--
+  Section: In Progress.
+  Columns: Feature, Owner, Notes.
+  When empty, render a single .empty row so the section never collapses.
+-->
+<section id="in-progress">
+  <h2>In Progress <span class="count" id="in-progress-count">0</span></h2>
+  <table class="features">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Owner</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="empty">
+        <td colspan="3">Nothing in progress yet.</td>
+      </tr>
+      <!--
+      <tr>
+        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-owner">Nigel</td>
+        <td class="feature-notes">Brief one-line note about status or scope.</td>
+      </tr>
+      -->
+    </tbody>
+  </table>
+</section>
+
+<!--
+  Section: Available.
+  Columns: Feature, Notes.
+-->
+<section id="available">
+  <h2>Available <span class="count" id="available-count">0</span></h2>
+  <table class="features">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="empty">
+        <td colspan="2">No features queued yet.</td>
+      </tr>
+      <!--
+      <tr>
+        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-notes">One-line note describing what this is.</td>
+      </tr>
+      -->
+    </tbody>
+  </table>
+</section>
+
+<!--
+  Optional section: Suggested order.
+  Use prose / lists rather than a table — it's narrative, not tabular.
+  Remove the entire <section> if the project doesn't maintain one.
+-->
+<section id="suggested-order">
+  <h2>Suggested order</h2>
+  <p class="section-blurb">How the Available items might be sequenced. Optional.</p>
+  <ol>
+    <li>...</li>
+  </ol>
+</section>
+
+<!--
+  Optional section: Done.
+  Columns: Feature, Outcome.
+  Remove the entire <section> if there's nothing shipped yet.
+-->
+<section id="done">
+  <h2>Done <span class="count" id="done-count">0</span></h2>
+  <p class="section-blurb">Completed or obsoleted; kept here for context.</p>
+  <table class="features">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Outcome</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="empty">
+        <td colspan="2">Nothing shipped yet.</td>
+      </tr>
+      <!--
+      <tr>
+        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-outcome"><strong>Shipped.</strong> Summary of what landed.</td>
+      </tr>
+      -->
+    </tbody>
+  </table>
+</section>
+
+</div>
+
+<script>
+  // Count populated rows per section (everything except .empty rows).
+  function setCount(sectionId, countId) {
+    const rows = document.querySelectorAll('#' + sectionId + ' tbody tr');
+    const populated = Array.from(rows).filter(r => !r.classList.contains('empty')).length;
+    const el = document.getElementById(countId);
+    if (el) el.textContent = populated;
+  }
+  setCount('in-progress', 'in-progress-count');
+  setCount('available', 'available-count');
+  setCount('done', 'done-count');
+</script>
+
+</body>
+</html>
