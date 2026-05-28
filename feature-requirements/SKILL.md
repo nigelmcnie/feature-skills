@@ -1,6 +1,6 @@
 ---
 name: feature-requirements
-description: Draft and review requirements for a feature. Use when starting work on a new feature, when the user describes something they want to build, or when there is no requirements.md yet for a feature they want to implement.
+description: Draft and review requirements for a feature. Writes the canonical requirements.html to the developer-scoped store and optionally exports markdown/HTML to the repo via .feature-workflow.toml. Use when starting work on a new feature, when the user describes something they want to build, or when there is no requirements doc yet for a feature they want to implement.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 argument-hint: "[feature-name]"
@@ -9,6 +9,12 @@ argument-hint: "[feature-name]"
 # Requirements Workflow
 
 You are starting the requirements phase for a feature.
+
+The canonical requirements doc is HTML in the developer-scoped store at
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`, where
+`<PROJECT>` is `basename $(git rev-parse --show-toplevel)`. The repo
+gets an exported snapshot (markdown or HTML) when `.feature-workflow.toml`
+opts in.
 
 ## Model check
 
@@ -47,6 +53,12 @@ confirm the feature name with the user before proceeding. Store this
 confirmed name — call it FEATURE — and use it for all file paths. Do not
 use `$ARGUMENTS` directly in paths in case the user confirms a different name.
 
+Also resolve PROJECT once and reuse it everywhere:
+
+```bash
+PROJECT=$(basename $(git rev-parse --show-toplevel))
+```
+
 Once FEATURE is confirmed, tell the user:
 
 > → Run `/rename <FEATURE>` to name this session for the feature.
@@ -61,42 +73,85 @@ can see it's being worked on.
 
 If there is no `features.md`, skip this step.
 
+(The features tracker will move to a `features.html` in the dev-store in
+a later migration step; until then, `features.md` in the repo remains
+the source.)
+
 ## Step 3: Read context
 
 Read the following:
-- `CLAUDE.md` (architecture and conventions)
-- Any spec or design doc the user has pointed to, including anything linked
-  from `features.md` for this feature
-- `docs/features/<FEATURE>/context.md` if it exists — treat this as historical
-  background context to inform the requirements, not as a spec to transcribe.
-  The requirements document should be written fresh, drawing on this context
-  where relevant but not constrained by it.
+
+- `CLAUDE.md` (architecture and conventions).
+- Any spec or design doc the user has pointed to, including anything
+  linked from `features.md` for this feature.
+- The captured context for this feature, in this order of preference:
+  1. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html` if it
+     exists — the new canonical location.
+  2. Otherwise `docs/features/<FEATURE>/context.md` if it exists — the
+     legacy location, still valid for features captured before the
+     HTML migration.
+
+  Treat the context as historical background, not as a spec to
+  transcribe. The requirements document should be written fresh,
+  drawing on this context where relevant but not constrained by it.
 - Any other design docs in the repo that look relevant to the feature.
-  Don't restrict yourself to the repo root — explore anywhere that may help.
+  Don't restrict yourself to the repo root — explore anywhere that may
+  help.
 
 ## Step 4: Draft
 
-Write the requirements document to `docs/features/<FEATURE>/requirements.md`
-with the following structure:
+Use `~/.claude/skills/feature/requirements-template.html` as the basis.
+Copy its CSS and JavaScript verbatim. Render the requirements into the
+template's structure.
 
-- **Problem**: what's broken or missing, with concrete examples.
-- **Vision**: one-sentence description of the solved state.
-- **User stories**: who benefits and how — every story carries a concrete
-  scenario, not just abstract desire.
-- **Data model** (if relevant): what's stored and how it relates to the
-  existing schema; relationships, not exact column types.
-- **Technical approach**: high-level how, not implementation detail.
-- **Alternatives considered** (optional): approaches discussed but not
-  chosen, with reasoning. Skip the section if the user pre-chose the
-  approach and no real alternatives came up — don't fabricate
-  alternatives to fill space. Every alternative must be grounded
-  (discussed with user, established by a design doc, or an obvious
-  known pattern); inline the source.
-- **Delivery phases**: ordered increments that each deliver testable
-  value; each phase becomes one MR.
-- **Indicative implementation notes** (optional, at the bottom):
-  plan-level detail worth carrying forward without polluting the
-  requirements body — see "Requirements vs plan" below.
+Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`.
+Create parent dirs with `mkdir -p` if needed.
+
+Update in the template:
+
+- `<title>`, the `<h1>` (feature name), the subtitle.
+- The TOC entries to match the actual sections present (omit any TOC
+  entry whose section you've dropped).
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements`.
+
+### Sections
+
+A good requirements doc contains:
+
+- **Problem** (`id="problem"`): what's broken or missing, with concrete
+  examples.
+- **Vision** (`id="vision"`): one-sentence description of the solved
+  state, wrapped in `<p class="vision-statement">`.
+- **User stories** (`id="user-stories"`): rendered as
+  `<ol class="stories">` with `<li>` cards. Each story carries
+  `<div class="actor">As a [role]</div>`,
+  `<div class="want">I want [capability]</div>`, and
+  `<div class="scenario">Concrete situation</div>` — every story needs a
+  concrete scenario, not just abstract desire.
+- **Data model** (`id="data-model"`, if relevant): what's stored and
+  how it relates to the existing schema; relationships, not exact column
+  types.
+- **Technical approach** (`id="technical-approach"`): high-level how, not
+  implementation detail.
+- **Alternatives considered** (`id="alternatives"`, optional): rendered
+  as `<ol class="alternatives">`; each `<li>` has `.alt-title`,
+  `.alt-source` (inline source citation — "discussed with user", "from
+  design doc X"), and `.alt-reason`. Skip the section entirely if the
+  user pre-chose the approach and no real alternatives came up — don't
+  fabricate to fill space.
+- **Delivery phases** (`id="delivery-phases"`): each phase as a
+  `<div class="phase">` containing a `<div class="phase-header">` (badge
+  + h3) and prose. Ordered increments that each deliver testable value;
+  each phase becomes one MR.
+- **Indicative implementation notes** (`id="indicative-notes"`,
+  optional, at the bottom): plan-level detail worth carrying forward
+  without polluting the requirements body — see "Requirements vs plan"
+  below.
+- **Design notes** (`id="design-notes"`, optional, populated during
+  iteration): decisions and reasoning captured from review rounds.
+
+Omit any optional section (and its TOC entry) if you have nothing real
+to put in it. Don't pad.
 
 ### Requirements vs plan
 
@@ -117,8 +172,8 @@ Requirements answer **what** and **why**. The plan answers **how**.
 
 When in doubt, keep requirements abstract. If a piece of plan-level
 detail feels too important to lose, put it in **Indicative
-implementation notes** at the bottom of `requirements.md`. The plan
-skill reads this section to carry forward useful context.
+implementation notes** at the bottom. The plan skill reads this section
+to carry forward useful context.
 
 ### Tradeoff guidance
 
@@ -130,17 +185,52 @@ skill reads this section to carry forward useful context.
   or as a new entry in the feature tracker. Not everything needs to be
   in scope.
 
+### Export to the repo (if configured)
+
+Check `.feature-workflow.toml` at the repo root. The relevant key is
+`[export].requirements`. If the file is absent or the key is missing or
+set to `"none"`, skip this step.
+
+Otherwise:
+
+- **`markdown`**:
+
+  ```bash
+  mkdir -p docs/features/<FEATURE>
+  feature-html-to-md \
+      ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
+      docs/features/<FEATURE>/requirements.md
+  ```
+
+- **`html`**:
+
+  ```bash
+  mkdir -p docs/features/<FEATURE>
+  cp ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
+     docs/features/<FEATURE>/requirements.html
+  ```
+
+Remember the export-target path; you'll commit it at handoff (Step 8).
+
+### Open it
+
+```bash
+google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html &
+```
+
+The trailing `&` backgrounds the browser process so the agent doesn't
+wait.
+
 ## Step 5: Present and review in parallel
 
-Tell the user the draft is ready for their review. Spawn a reviewer subagent
-using the Agent tool with `run_in_background: true` so it runs while the
-human reads. Tell the user the reviewer is running and they can start reading
-immediately.
+Tell the user the draft is ready for their review and that the HTML is
+open in Chrome. Spawn a reviewer subagent using the Agent tool with
+`run_in_background: true` so it runs while the human reads.
 
 Prompt for the reviewer:
 
 > You are reviewing a requirements document for a feature.
-> Read the document at `docs/features/<FEATURE>/requirements.md`.
+> Read the document at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`.
 > Read `CLAUDE.md` for architectural context.
 > Read any other design docs in the repo that look relevant.
 >
@@ -154,6 +244,10 @@ Prompt for the reviewer:
 >
 > Be specific. Reference sections by name. Focus on substance, not style.
 
+The user may leave click-to-comment annotations inline in
+`requirements.html` while reading. Those come back as a "Copy comments"
+JSON blob in Step 6b.
+
 ## Step 6: Produce feedback synthesis document
 
 For each piece of reviewer feedback, decide your take:
@@ -163,12 +257,12 @@ For each piece of reviewer feedback, decide your take:
   the requirement is correct as written.
 - For feedback flagging plan-level detail in the requirements, the
   options are:
-  1. **Accept and remove**: it's not load-bearing context
+  1. **Accept and remove**: it's not load-bearing context.
   2. **Move to Indicative implementation notes**: useful for planning,
      but doesn't belong in the requirements body (see "Requirements vs
-     plan" in Step 4)
+     plan" in Step 4).
   3. **Disagree**: it's genuinely a requirement constraint, not a plan
-     choice
+     choice.
 
 ### Write the HTML synthesis doc
 
@@ -176,35 +270,38 @@ Use `~/.claude/skills/feature/feedback-template.html` as the basis.
 Copy its CSS and JavaScript verbatim. Render the items into the
 template's three-tier structure (Needs your input / Feedback / Routine).
 
-Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`,
-where `<PROJECT>` is `basename $(git rev-parse --show-toplevel)`.
+Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`.
 Create parent dirs with `mkdir -p` if needed.
 
 Update in the template:
-- `<title>`, the `<h1>`, the subtitle
-- The meta line (item counts)
-- The textarea total in the footer
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-1`
+- `<title>`, the `<h1>`, the subtitle.
+- The meta line (item counts).
+- The textarea total in the footer.
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-1`.
 
 ### Open it
-
-Open the HTML in the user's browser:
 
 ```bash
 google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html &
 ```
 
-The trailing `&` backgrounds the browser process so the agent doesn't wait.
-
 ### Hand off
 
-Tell the user the synthesis doc is open and that you'll wait for them
-to click **Copy responses** in the HTML and paste the JSON blob back.
+Tell the user the synthesis doc is open. You'll wait for them to:
+
+1. Click **Copy responses** in the synthesis doc and paste the JSON
+   blob back, AND/OR
+2. Leave click-to-comment annotations in `requirements.html` and click
+   **Copy comments** to paste that JSON blob back.
+
+They may paste one, the other, or both — and may iterate (paste
+synthesis, then add comments later, etc.).
 
 ## Step 6b: Integrate feedback
 
-The user clicks **Copy responses** in the HTML and pastes a JSON blob
-in chat. Format:
+Two JSON shapes can arrive in chat:
+
+**Synthesis-doc responses** (from `requirements-feedback-<N>.html`):
 
 ```json
 {
@@ -219,22 +316,52 @@ in chat. Format:
 - Items in `routine_flags` are routine items the user wants to discuss
   — their comment explains why. Treat as needing your call.
 
-If the user signals completion without pasting a blob (e.g. "i'm done"),
-ask them to click **Copy responses** in the HTML and paste it.
+**Click-to-comment annotations** (from `requirements.html`):
 
-Integrate all feedback into the requirements document, noting any
-declined suggestions inline near the relevant section.
+```json
+{
+  "doc": "docs/features/<FEATURE>/requirements",
+  "comments": [
+    {"excerpt": "...", "text": "user comment"}
+  ]
+}
+```
 
-Before archiving the synthesis doc, capture decisions that would
-otherwise be lost: check user annotations for design principles, broader
-reasoning, or open questions beyond the specific decision. Distill these
-into a "Design notes" section in the feature's `requirements.md` (create
-it if it doesn't exist). Keep entries to one or two lines, cite the
-source review round. Ensure declined suggestions land in "Alternatives
-considered" or "Non-goals" with the user's reasoning. Don't duplicate
-what's already captured in the requirements text.
+Each comment is a piece of marginalia anchored to a selected passage.
 
-Archive the HTML synthesis doc:
+If the user signals completion without pasting anything (e.g. "i'm
+done"), ask which they meant: the synthesis blob, the comments blob,
+or both. Don't proceed without explicit input.
+
+### Re-render requirements.html
+
+After collecting and reasoning over the inputs, **rewrite
+`requirements.html` from scratch** — a fresh render that incorporates:
+
+- Synthesis responses (your decisions per item).
+- Routine-flag items (the user's pushback).
+- Click-to-comment annotations (each treated as an additional piece of
+  feedback, integrated into the relevant section).
+
+The fresh render mirrors the historical markdown workflow:
+mid-iteration in-place edits aren't enough — we re-render so the
+canonical HTML reflects the full integrated state.
+
+Capture decisions that would otherwise be lost: check user annotations
+for design principles, broader reasoning, or open questions beyond the
+specific decision. Distill these into the **Design notes** section
+(`id="design-notes"`) of `requirements.html` (add the section if it
+doesn't exist). Keep entries to one or two lines, cite the source
+review round. Ensure declined suggestions land in **Alternatives
+considered** or as inline notes with the user's reasoning.
+
+### Re-run the export (if configured)
+
+If `.feature-workflow.toml` opts in for `requirements`, re-run the
+export step (markdown or HTML copy) so the repo snapshot reflects the
+integrated state.
+
+### Archive the synthesis doc
 
 ```bash
 PROJECT=$(basename $(git rev-parse --show-toplevel))
@@ -243,30 +370,42 @@ mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
    ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/
 ```
 
-Remove any resolved inline notes from `requirements.md` once decisions are
-captured. Summarise the changes to the user.
+The synthesis doc is transient; the integrated state lives in
+`requirements.html` and the design-notes section. Tell the user the
+rewrite is ready and that they can refresh the Chrome tab to see it.
+
+Summarise the changes to the user.
 
 ## Step 7: Iterate
 
-If the user adds inline notes directly to the requirements document and asks you to
-integrate them, or asks to go around the loop again:
-1. Re-read the document to pick up their edits
-2. Incorporate inline notes into the document properly
-3. Re-spawn the reviewer subagent on the updated content
-4. Produce a new synthesis document (`requirements-feedback-2.md`, etc.) using the same
-   format as Step 6
-5. Follow the same fill-in → integrate flow
+If the user comes back with more feedback — a new round of click-to-
+comment annotations, fresh chat instructions, or a request to go round
+the loop again:
 
-Repeat as many times as the user wants. The user signals approval conversationally
-("looks good", "approved", "let's plan").
+1. Re-read `requirements.html` to pick up its current state.
+2. Apply the new feedback by rewriting `requirements.html` (the same
+   fresh-render discipline as Step 6b).
+3. If the changes are substantial, re-spawn the reviewer subagent on
+   the updated HTML and produce a new synthesis doc
+   (`requirements-feedback-2.html`, etc.) following Step 6.
+4. Re-run the export (if configured).
+
+Repeat until the user signals approval conversationally ("looks good",
+"approved", "let's plan").
 
 ## Step 8: Handoff
 
-When the user signals approval — any of: "looks good", "approved", "let's plan",
-"ready to plan", "move on", "time to plan", or similar:
+When the user signals approval — any of: "looks good", "approved",
+"let's plan", "ready to plan", "move on", "time to plan", or similar:
 
-1. Check for any remaining `requirements-feedback-N.md` files. If found, integrate
-   them (per Step 6b, including capturing design notes) before proceeding.
-2. Commit `docs/features/<FEATURE>/requirements.md` with the message
-   `docs(<FEATURE>): add requirements` and push.
-3. Automatically invoke `/feature-plan <FEATURE>` without waiting to be asked.
+1. Re-confirm: integrate any unprocessed click-to-comment or synthesis
+   feedback (per Step 6b) before proceeding.
+2. Commit only what ended up in the repo via the export step:
+   - If `[export].requirements` is `markdown` or `html`, commit
+     `docs/features/<FEATURE>/requirements.{md,html}`.
+   - If `[export].requirements` is `none` or absent, there's nothing
+     to commit — the canonical HTML in the dev-store is local-only
+     working memory. Skip the commit step.
+3. Use the message `docs(<FEATURE>): add requirements`. Push.
+4. Automatically invoke `/feature-plan <FEATURE>` without waiting to be
+   asked.
