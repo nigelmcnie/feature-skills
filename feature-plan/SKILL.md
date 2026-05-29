@@ -163,6 +163,14 @@ and stable across re-renders. If the plan iterates and items get
 reordered or inserted, mint new IDs for new items but preserve
 existing IDs for items that already exist.
 
+**Adjacency contract**: keep `<li>` and the inner `<input>` on the
+same line (or with only whitespace between them). The detector used
+by `feature-implement` / the router greps for unchecked items via
+the `<li ...><input...>` pattern; pretty-printing the checklist
+across multiple lines would make the detector miss items and report
+"all done" prematurely. Re-renders (Step 4 / Step 5 below) must
+preserve the single-line item shape.
+
 Items within each phase are ordered as they will be implemented.
 
 ### Quality control
@@ -279,6 +287,11 @@ and paste a JSON blob back. Format:
 Fold those comments into the same triage — each comment is an
 additional piece of feedback. The user may paste comments alongside
 the reviewer's output, before it, or independently.
+
+Before folding the blob in, sanity-check the `doc` field: it should
+be `docs/features/<FEATURE>/plan`. If it doesn't match (wrong
+feature, or pasted from a different doc by mistake), warn the user
+inline and don't proceed until they confirm.
 
 Wait for the user's response. Apply the "Will apply" items plus the
 resolved questions and any actionable comment annotations.

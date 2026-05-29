@@ -23,6 +23,14 @@
        third step of Phase 1). feature-implement marks items checked
        by this ID, so the values must be unique and stable across
        re-renders.
+
+       **Adjacency contract**: keep <li> and the inner <input> on the
+       same line (or with only whitespace between them). The detector
+       used by feature-implement / the router greps for unchecked
+       items via the <li ...><input...> pattern; pretty-printing the
+       checklist across multiple lines would make the detector miss
+       items and report "all done" prematurely. Re-renders must
+       preserve the single-line item shape.
     7. Update the JS `docId` constant.
     8. Keep all CSS and JavaScript verbatim.
     9. Save to ~/.claude/feature-docs/<project>/<feature>/plan.html.

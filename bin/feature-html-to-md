@@ -318,11 +318,29 @@ def convert_plan(soup) -> str:
     return "\n\n".join(parts) + "\n"
 
 
+# Tracker hrefs in the canonical features.html are dev-store-sibling
+# (e.g. "rule-ir/context.html"). The exported features.md sits at the
+# repo root, so rewrite to repo-relative markdown paths.
+_FEATURE_HREF = re.compile(r"^([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)\.html$")
+
+
+def convert_features(soup) -> str:
+    """Features tracker render. Rewrites sibling tracker hrefs to
+    repo-relative markdown paths so the exported features.md links
+    work from the repo root."""
+    for a in soup.find_all("a", href=True):
+        m = _FEATURE_HREF.match(a["href"])
+        if m:
+            feature, artifact = m.groups()
+            a["href"] = f"docs/features/{feature}/{artifact}.md"
+    return convert_generic(soup)
+
+
 CONVERTERS = {
     "context": convert_generic,
     "requirements": convert_generic,
     "plan": convert_plan,
-    "features": convert_generic,
+    "features": convert_features,
 }
 
 

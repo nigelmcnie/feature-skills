@@ -99,10 +99,15 @@ To check for unchecked items:
   whose `<input>` lacks the `checked` attribute. A quick scan:
 
   ```bash
-  grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*><input[^>]*>' \
+  grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' \
       ~/.claude/feature-docs/$PROJECT/$FEATURE/plan.html 2>/dev/null \
     | grep -vc ' checked' || echo 0
   ```
+
+  The `[[:space:]]*` tolerates same-line whitespace between the `<li>`
+  open tag and the `<input>`. The plan template's adjacency contract
+  requires them on the same line — multi-line splits will make this
+  detector miss items.
 
 - **Markdown plan** (legacy):
 

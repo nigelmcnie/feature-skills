@@ -82,10 +82,15 @@ The canonical tracker is
   `<section id="available">`; `Done` (if present) →
   `<section id="done">`; `Suggested order` (if present) → keep as
   prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`, leaving the href
-  as-is — the repo-relative paths are intentional (see the template
-  comments). Drop any `<tr class="empty">` placeholders for tbodies
-  that now have real rows. Write the file to
+  `[text](path)` link to `<a href="path">text</a>`. Rewrite
+  feature-doc hrefs from the legacy repo-relative form
+  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
+  form `<feature>/<artifact>.html` (e.g.
+  `docs/features/rule-ir/context.md` →
+  `rule-ir/context.html`), so the canonical tracker has working
+  click-through. Leave hrefs that don't match this pattern alone.
+  Drop any `<tr class="empty">` placeholders for tbodies that
+  now have real rows. Write the file to
   `~/.claude/feature-docs/<PROJECT>/features.html`.
 - **Otherwise, if neither exists**: skip this entire step. The
   project doesn't use a tracker.
@@ -102,7 +107,7 @@ If the feature isn't in any tracker section yet (claimed cold, no
 prior context capture), append a new `<tr>` to the `In Progress`
 section's `<tbody>` with:
 
-- `<td class="feature-name"><a href="docs/features/<FEATURE>/context.md">FEATURE</a></td>`
+- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
 - `<td class="feature-owner">…user's name…</td>`
 - `<td class="feature-notes">…one-line note about scope or status…</td>`
 
@@ -308,9 +313,9 @@ JSON blob in Step 6b.
 
 For each piece of reviewer feedback, decide your take:
 
-- **My take** should say whether you agree or disagree with reasoning —
-  if agreeing, note how you'd address it; if disagreeing, explain why
-  the requirement is correct as written.
+- **My take** should say whether you agree or disagree with reasoning
+  — if agreeing, note how you'd address it; if disagreeing, explain
+  why the requirement is correct as written.
 - For feedback flagging plan-level detail in the requirements, the
   options are:
   1. **Accept and remove**: it's not load-bearing context.
@@ -320,11 +325,51 @@ For each piece of reviewer feedback, decide your take:
   3. **Disagree**: it's genuinely a requirement constraint, not a plan
      choice.
 
+### Triage
+
+Items get bucketed into three tiers:
+
+- **Needs your input**: product/conceptual decisions, scope or
+  phasing trade-offs, deferral decisions, naming for concepts,
+  anything you're not confident about, anything where you might be
+  making assumptions about dev velocity.
+- **Routine**: only items you're highly confident are
+  uncontroversial — factual citation/path fixes, naming mechanics
+  (rename X to Y), wording polish, defensive-test additions,
+  observability/logging granularity, schema minor specs.
+- **Feedback** (the middle): everything else, in the reviewer's
+  original order.
+
+When in doubt, prefer **Feedback** over **Routine**. The cost of a
+Feedback item that turns out to be uncontroversial is small; the
+cost of a misclassified Routine item is larger.
+
+Item-level guidance:
+
+- **Numbered titles**: descriptive enough that a reader grasps the
+  issue at a glance. Number continuously across all three tiers
+  (1, 2, 3, …), not restarting per section.
+- **Detail paragraph**: include when the title alone isn't
+  self-evident. Skip in the Routine tier.
+- **My take**: focus on substance. Length matches the complexity of
+  the call. In the Routine tier, keep it to one line.
+- **"Your thoughts"**: left blank in the top and middle tiers (the
+  HTML form provides the textareas). The Routine tier has no input
+  — the user pushes back in chat if needed.
+
+### Pick the next N
+
+Count existing requirements-feedback files across both the dev-store
+(`~/.claude/feature-docs/<PROJECT>/<FEATURE>/`, including
+`.feedback-archive/`) and the legacy repo location
+(`docs/features/<FEATURE>/`, including `.feedback-archive/`). Take
+the max N and increment. If none exist, `N = 1`.
+
 ### Write the HTML synthesis doc
 
 Use `~/.claude/skills/feature/feedback-template.html` as the basis.
-Copy its CSS and JavaScript verbatim. Render the items into the
-template's three-tier structure (Needs your input / Feedback / Routine).
+Copy its CSS and JavaScript verbatim. Render the triaged items into
+the template's three-tier structure.
 
 Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`.
 Create parent dirs with `mkdir -p` if needed.
@@ -333,7 +378,7 @@ Update in the template:
 - `<title>`, the `<h1>`, the subtitle.
 - The meta line (item counts).
 - The textarea total in the footer.
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-1`.
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-<N>`.
 
 ### Open it
 
@@ -384,6 +429,25 @@ Two JSON shapes can arrive in chat:
 ```
 
 Each comment is a piece of marginalia anchored to a selected passage.
+
+### Sanity-check the `doc` field
+
+Before integrating either blob, verify the `doc` field matches what
+you expect for this feature and round:
+
+- Synthesis blob: expected
+  `docs/features/<FEATURE>/requirements-feedback-<N>` for the round
+  you just opened in Step 6.
+- Click-to-comment blob: expected
+  `docs/features/<FEATURE>/requirements`.
+
+If the value doesn't match (wrong feature, wrong round, or a stale
+tab from another session), warn the user inline ("the pasted blob's
+`doc` field is `X`, but I expected `Y` — looks like the wrong tab.
+Confirm before I integrate?") and don't proceed until they
+acknowledge. The blob author may legitimately want to apply
+cross-session annotations, but the default assumption is mistaken
+paste.
 
 If the user signals completion without pasting anything (e.g. "i'm
 done"), ask which they meant: the synthesis blob, the comments blob,
@@ -463,5 +527,8 @@ When the user signals approval — any of: "looks good", "approved",
      to commit — the canonical HTML in the dev-store is local-only
      working memory. Skip the commit step.
 3. Use the message `docs(<FEATURE>): add requirements`. Push.
-4. Automatically invoke `/feature-plan <FEATURE>` without waiting to be
-   asked.
+4. Automatically continue into the planning stage without waiting to
+   be asked. **Do NOT use the Skill tool to invoke `/feature-plan`** —
+   it sets `disable-model-invocation: true`, which blocks the Skill
+   tool. Read `~/.claude/skills/feature-plan/SKILL.md` and execute its
+   instructions inline in this conversation.

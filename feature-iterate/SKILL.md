@@ -85,6 +85,23 @@ The user may also have left click-to-comment annotations on
 `requirements.html` or `plan.html` and pasted a `{"doc": ".../<file>",
 "comments": [...]}` blob. Fold those in as additional feedback.
 
+### Sanity-check the `doc` field
+
+Before integrating either blob, verify its `doc` field matches what
+you expect:
+
+- Synthesis blob: expected
+  `docs/features/<FEATURE>/review-feedback-<N>` for the highest N
+  in the dev-store.
+- Click-to-comment blob: expected `docs/features/<FEATURE>/requirements`
+  or `docs/features/<FEATURE>/plan` (depending on which doc the user
+  was commenting on).
+
+If the value doesn't match (wrong feature, stale tab, wrong round),
+warn the user inline ("the pasted blob's `doc` field is `X`, but I
+expected `Y` — looks like the wrong tab. Confirm before I integrate?")
+and don't proceed until they acknowledge.
+
 ### Markdown synthesis doc (legacy)
 
 Read the highest-numbered `review-feedback-N.md`. The user's
@@ -177,6 +194,11 @@ GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
 
 Invoke `/feature-qa` and work through all checks it defines.
 
+**Do NOT use the Skill tool to invoke `/feature-qa`** — it sets
+`disable-model-invocation: true`, which blocks the Skill tool. Read
+`~/.claude/skills/feature-qa/SKILL.md` and execute its instructions
+inline in this conversation.
+
 ## Step 3.5: Commit, push, and (if on a branch) create an MR
 
 Commit all changed files — implementation changes plus whichever
@@ -255,3 +277,34 @@ requirements.
 
 Summarise what changed, what was declined and why, and whether all
 quality checks pass.
+
+## Step 6: Wrap up — iterate more, or ship
+
+The iteration loop ends here. The feature is either ready to ship or
+needs another round.
+
+If the re-reviewer surfaced findings worth another round, or the user
+signals they want to keep iterating ("more changes", "another round",
+or similar), tell them they can re-invoke `/feature-iterate <FEATURE>`
+once this iteration's MR has landed (or stay in chat for more edits
+on the current branch).
+
+If the re-reviewer came back clean OR the user signals satisfaction
+("looks good", "all done", "ship it", "nothing else", or similar):
+
+- **If the current branch is `main`** (the Step 0.5 direct-commit
+  path): re-run the mark-shipped procedure now. **Do NOT use the
+  Skill tool to invoke `/feature-review`** — it sets
+  `disable-model-invocation: true`, which blocks the Skill tool. Read
+  `~/.claude/skills/feature-review/SKILL.md` Step 10 ("Mark shipped")
+  and execute it inline. Skip the earlier steps of feature-review —
+  the re-review already happened in Step 4 above; you don't need to
+  rerun verification.
+- **If the current branch is `features/<FEATURE>-iterate-N`** (open
+  iteration MR): the MR has to merge before shipping. Tell the user:
+
+  > Once this iteration's MR has merged, run `/feature-review <FEATURE>`
+  > on main — it'll re-verify against the merged state and run the
+  > mark-shipped procedure if everything's clean.
+
+  Don't try to mark shipped from a branch.

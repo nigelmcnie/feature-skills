@@ -144,10 +144,15 @@ The canonical tracker is
   `<section id="available">`; `Done` (if present) →
   `<section id="done">`; `Suggested order` (if present) → keep as
   prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`, leaving the href
-  as-is — the repo-relative paths are intentional (see the template
-  comments). Drop any `<tr class="empty">` placeholders for tbodies
-  that now have real rows. Write the file to
+  `[text](path)` link to `<a href="path">text</a>`. Rewrite
+  feature-doc hrefs from the legacy repo-relative form
+  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
+  form `<feature>/<artifact>.html` (e.g.
+  `docs/features/rule-ir/context.md` →
+  `rule-ir/context.html`), so the canonical tracker has working
+  click-through. Leave hrefs that don't match this pattern alone.
+  Drop any `<tr class="empty">` placeholders for tbodies that
+  now have real rows. Write the file to
   `~/.claude/feature-docs/<PROJECT>/features.html`.
 - **Otherwise, if neither exists**: skip this entire step. The
   project doesn't use a tracker. (Don't offer to scaffold here — the
@@ -157,7 +162,7 @@ The canonical tracker is
 
 Append a `<tr>` to the `Available` section's `<tbody>` with two cells:
 
-- `<td class="feature-name"><a href="docs/features/<FEATURE>/context.md">FEATURE</a></td>`
+- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
 - `<td class="feature-notes">…one-line note about what this is…</td>`
 
 Do not move anything to In Progress — this feature is being captured

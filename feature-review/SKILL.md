@@ -247,15 +247,29 @@ responses**, and paste the JSON blob back. The user may also leave
 click-to-comment annotations on `requirements.html` or `plan.html`
 and paste a `{"doc": ".../<file>", "comments": [...]}` blob.
 
-When the JSON arrives, parse it, and summarise which items will be
-addressed in `/feature-iterate` and which are being set aside. The
-synthesis HTML stays in dev-store for `/feature-iterate` to consume.
+When the JSON arrives, sanity-check the `doc` field — for the
+synthesis blob it should be
+`docs/features/<FEATURE>/review-feedback-<N>` for the N you just
+opened; for click-to-comment blobs it should match
+`docs/features/<FEATURE>/{requirements,plan}`. If it doesn't, warn
+the user inline ("the pasted blob's `doc` field is `X`, but I
+expected `Y` — looks like the wrong tab") and confirm before
+proceeding.
+
+Then parse and summarise which items will be addressed in
+`/feature-iterate` and which are being set aside. The synthesis HTML
+stays in dev-store for `/feature-iterate` to consume.
 
 ## Step 9: Handoff
 
 If there are findings to address and the user wants to act on them —
 any of: "let's fix those", "address the feedback", "iterate", "go
-ahead", or similar — automatically invoke `/feature-iterate <FEATURE>`.
+ahead", or similar — automatically continue into the iteration stage.
+
+**Do NOT use the Skill tool to invoke `/feature-iterate`** — it sets
+`disable-model-invocation: true`, which blocks the Skill tool. Read
+`~/.claude/skills/feature-iterate/SKILL.md` and execute its
+instructions inline in this conversation.
 
 ## Step 10: Mark shipped
 
@@ -282,8 +296,14 @@ opts in.
   `<section id="available">`; `Done` (if present) →
   `<section id="done">`; `Suggested order` (if present) → keep as
   prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`, leaving the href
-  as-is. Drop any `<tr class="empty">` placeholders for tbodies that
+  `[text](path)` link to `<a href="path">text</a>`. Rewrite
+  feature-doc hrefs from the legacy repo-relative form
+  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
+  form `<feature>/<artifact>.html` (e.g.
+  `docs/features/rule-ir/context.md` →
+  `rule-ir/context.html`), so the canonical tracker has working
+  click-through. Leave hrefs that don't match this pattern alone.
+  Drop any `<tr class="empty">` placeholders for tbodies that
   now have real rows. Write the file to
   `~/.claude/feature-docs/<PROJECT>/features.html`.
 - **Otherwise, if neither exists**: skip this entire step. The
@@ -300,7 +320,7 @@ two-column table: Feature, Outcome) and insert it after the
 
 Each Done row has two cells:
 
-- `<td class="feature-name"><a href="docs/features/<FEATURE>/context.md">FEATURE</a></td>`
+- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
 - `<td class="feature-outcome"><strong>Shipped.</strong> …short
   summary of what landed, drawn from the implementation diff and MR
   descriptions…</td>`

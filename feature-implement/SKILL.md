@@ -49,9 +49,15 @@ to implement.
 A quick scan:
 
 ```bash
-grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*><input[^>]*>' "$PLAN_PATH" \
+grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' "$PLAN_PATH" \
   | grep -v ' checked'
 ```
+
+(The `[[:space:]]*` tolerates same-line whitespace between the `<li>`
+open tag and the `<input>`. The plan template's checklist adjacency
+contract still requires them on the same line — if a re-render
+pretty-prints the checklist across multiple lines, the grep will
+miss items.)
 
 The first matching line names the next phase via its
 `phase-<N>-<step>` ID.
@@ -146,8 +152,14 @@ If implementation reveals the plan needs to change:
 
 ## Step 4: Quality control
 
-Before committing, invoke `/feature-qa` and work through all checks it
-defines. Do not rely on having run QC incrementally — do a full pass now.
+Before committing, invoke `/feature-qa` and work through all checks
+it defines. Do not rely on having run QC incrementally — do a full
+pass now.
+
+**Do NOT use the Skill tool to invoke `/feature-qa`** — it sets
+`disable-model-invocation: true`, which blocks the Skill tool. Read
+`~/.claude/skills/feature-qa/SKILL.md` and execute its instructions
+inline in this conversation.
 
 ## Step 5: Commit and create MR
 
