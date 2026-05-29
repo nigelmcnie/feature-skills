@@ -171,13 +171,81 @@ If there are findings to address and the user wants to act on them — any of:
 
 ## Step 10: Mark shipped
 
-When the review cycle is complete with no outstanding items — either the
-initial review had no findings, or the user signals they are satisfied after
-iterations ("looks good", "all done", "ship it", "nothing else", or similar):
+When the review cycle is complete with no outstanding items — either
+the initial review had no findings, or the user signals they are
+satisfied after iterations ("looks good", "all done", "ship it",
+"nothing else", or similar):
 
-1. If `features.md` exists at the repo root, remove the feature's row from
-   whichever table it appears in (typically "In Progress"). If the feature was
-   never claimed (not present in any table), skip silently.
-2. Commit the change directly to the current branch with the message
-   `docs: mark <FEATURE> as shipped in features.md` and push.
-3. Tell the user the feature is marked shipped.
+The canonical tracker is
+`~/.claude/feature-docs/<PROJECT>/features.html`, where `<PROJECT>` is
+`basename $(git rev-parse --show-toplevel)`. The repo's `features.md`
+(if any) is a script-generated snapshot when `.feature-workflow.toml`
+opts in.
+
+### Ensure features.html exists in the dev-store
+
+- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
+  it.
+- **Otherwise, if `features.md` exists at the repo root**: migrate.
+  Use `~/.claude/skills/feature/features-template.html` as the basis.
+  Set the `<title>`, `<h1>`, and subtitle for the project. Render the
+  existing markdown tables into the template's sections: `In
+  Progress` rows → `<section id="in-progress">` tbody; `Available` →
+  `<section id="available">`; `Done` (if present) →
+  `<section id="done">`; `Suggested order` (if present) → keep as
+  prose/list in `<section id="suggested-order">`. Convert each
+  `[text](path)` link to `<a href="path">text</a>`, leaving the href
+  as-is. Drop any `<tr class="empty">` placeholders for tbodies that
+  now have real rows. Write the file to
+  `~/.claude/feature-docs/<PROJECT>/features.html`.
+- **Otherwise, if neither exists**: skip this entire step. The
+  project doesn't use a tracker.
+
+### Move the feature to Done
+
+If the feature has a row in the `In Progress` section, remove it and
+append an equivalent row to the `Done` section's `<tbody>`. The Done
+section is optional in the template — if the section is absent,
+clone the structure from the template (`<section id="done">` with a
+two-column table: Feature, Outcome) and insert it after the
+`Available` section.
+
+Each Done row has two cells:
+
+- `<td class="feature-name"><a href="docs/features/<FEATURE>/context.md">FEATURE</a></td>`
+- `<td class="feature-outcome"><strong>Shipped.</strong> …short
+  summary of what landed, drawn from the implementation diff and MR
+  descriptions…</td>`
+
+Keep the outcome cell to one or two sentences capturing the
+substantive shape of what shipped — not a play-by-play of the
+review. The current convention in established trackers (kea) is to
+lead with "Shipped." in bold so the status reads at a glance.
+
+If the feature was never claimed (no row in any section), skip
+silently.
+
+### Export to the repo (if configured) and commit
+
+Check `.feature-workflow.toml`'s `[export].features` key. If
+`markdown`:
+
+```bash
+feature-html-to-md \
+    ~/.claude/feature-docs/<PROJECT>/features.html \
+    features.md
+```
+
+If `html`:
+
+```bash
+cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
+```
+
+If `none` or absent, skip the export and skip the commit.
+
+If something was exported, commit the change directly to the current
+branch (we're on main; see Step 1) with the message
+`docs: mark <FEATURE> as shipped` and push.
+
+Tell the user the feature is marked shipped.

@@ -125,32 +125,81 @@ google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html &
 The trailing `&` backgrounds the browser process so the agent doesn't
 wait.
 
-## Step 6: Update features.md (if it exists)
+## Step 6: Update the features tracker
 
-If `features.md` exists at the repo root, add a row to the **Available**
-table with the feature name and a brief one-line note. Do not move
-anything to In Progress — this feature is being captured for later, not
-started now.
+The canonical tracker is
+`~/.claude/feature-docs/<PROJECT>/features.html`. The repo's
+`features.md` (if any) is a script-generated snapshot when
+`.feature-workflow.toml` opts in.
 
-If `features.md` does not exist, skip this step silently. Do not offer
-to scaffold it — that's a separate concern.
+### Ensure features.html exists in the dev-store
 
-(The features tracker will move to a `features.html` in the dev-store
-in a later migration step; until then, `features.md` in the repo
-remains the source.)
+- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
+  it.
+- **Otherwise, if `features.md` exists at the repo root**: migrate.
+  Use `~/.claude/skills/feature/features-template.html` as the basis.
+  Set the `<title>`, `<h1>`, and subtitle for the project. Render the
+  existing markdown tables into the template's sections: `In
+  Progress` rows → `<section id="in-progress">` tbody; `Available` →
+  `<section id="available">`; `Done` (if present) →
+  `<section id="done">`; `Suggested order` (if present) → keep as
+  prose/list in `<section id="suggested-order">`. Convert each
+  `[text](path)` link to `<a href="path">text</a>`, leaving the href
+  as-is — the repo-relative paths are intentional (see the template
+  comments). Drop any `<tr class="empty">` placeholders for tbodies
+  that now have real rows. Write the file to
+  `~/.claude/feature-docs/<PROJECT>/features.html`.
+- **Otherwise, if neither exists**: skip this entire step. The
+  project doesn't use a tracker. (Don't offer to scaffold here — the
+  `/feature` router handles that.)
+
+### Add the row to Available
+
+Append a `<tr>` to the `Available` section's `<tbody>` with two cells:
+
+- `<td class="feature-name"><a href="docs/features/<FEATURE>/context.md">FEATURE</a></td>`
+- `<td class="feature-notes">…one-line note about what this is…</td>`
+
+Do not move anything to In Progress — this feature is being captured
+for later, not started now. If the `Available` tbody had a
+`<tr class="empty">` placeholder, remove it now.
+
+### Export to the repo (if configured)
+
+Check `.feature-workflow.toml`'s `[export].features` key. If
+`markdown`:
+
+```bash
+feature-html-to-md \
+    ~/.claude/feature-docs/<PROJECT>/features.html \
+    features.md
+```
+
+If `html`:
+
+```bash
+cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
+```
+
+If `none` or absent, skip. The tracker state is local-only in that
+case.
+
+Remember the export-target path; you'll commit it in Step 7.
 
 ## Step 7: Commit and push
 
 Commit whatever ended up in the repo this session:
 
-- The export-target file from Step 4 (if anything was exported).
-- `features.md` from Step 6 (if it was updated).
+- The context export-target file from Step 4 (if anything was
+  exported).
+- The features tracker export-target file from Step 6 (if anything
+  was exported).
 
 Use the message `docs: capture <FEATURE> context` and push.
 
-If nothing was exported and `features.md` wasn't updated, skip this
-step — there's nothing to commit (the canonical HTML in the dev-store
-is local-only working memory).
+If nothing was exported in either step, skip — there's nothing to
+commit. The canonical HTML in the dev-store is local-only working
+memory.
 
 ## Step 8: Done
 

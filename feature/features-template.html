@@ -14,10 +14,14 @@
     4. Optional sections (Suggested order, Done) can be removed entirely
        if the project doesn't have them. Don't pad with placeholder
        content.
-    5. When linking a feature row to its docs, prefer relative `file://`
-       paths to ~/.claude/feature-docs/<project>/<feature>/context.html
-       so the user can click through from the rendered page. Linking is
-       optional — leave the cell as plain text if no doc exists yet.
+    5. When linking a feature row to its docs, use repo-relative paths:
+         <a href="docs/features/<feature>/context.md">name</a>
+       These paths match the markdown-export convention so the exported
+       features.md (at the repo root) has working links. The dev-store
+       HTML viewer renders these as broken links — that's intentional;
+       the dev-store HTML is the canonical store the skills update, not
+       a browsing surface. Use the exported features.md in the repo if
+       you want to click through from a rendered page.
     6. Save to ~/.claude/feature-docs/<project>/features.html.
 
   Updates to the tracker:
@@ -200,7 +204,7 @@
       </tr>
       <!--
       <tr>
-        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-name"><a href="docs/features/<feature>/context.md">feature-slug</a></td>
         <td class="feature-owner">Nigel</td>
         <td class="feature-notes">Brief one-line note about status or scope.</td>
       </tr>
@@ -228,7 +232,7 @@
       </tr>
       <!--
       <tr>
-        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-name"><a href="docs/features/<feature>/context.md">feature-slug</a></td>
         <td class="feature-notes">One-line note describing what this is.</td>
       </tr>
       -->
@@ -270,7 +274,7 @@
       </tr>
       <!--
       <tr>
-        <td class="feature-name"><a href="<feature>/context.html">feature-slug</a></td>
+        <td class="feature-name"><a href="docs/features/<feature>/context.md">feature-slug</a></td>
         <td class="feature-outcome"><strong>Shipped.</strong> Summary of what landed.</td>
       </tr>
       -->
