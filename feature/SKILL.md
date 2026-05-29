@@ -65,9 +65,13 @@ tracker. Do not raise it again.
 
 ## Step 3: Detect state
 
-Look at what exists for this feature:
+Look at what exists for this feature. The canonical location is the
+dev-store; the repo's `docs/features/<FEATURE>/` is an exported
+snapshot (or absent if all `[export]` keys are `none`).
 
 ```bash
+PROJECT=$(basename $(git rev-parse --show-toplevel))
+ls ~/.claude/feature-docs/$PROJECT/$FEATURE/ 2>/dev/null
 ls docs/features/$FEATURE/ 2>/dev/null
 ```
 
@@ -78,20 +82,33 @@ Owner cell. Otherwise fall back to `features.md` at the repo root.
 
 ## Step 4: Route
 
-Based on what exists, route to the appropriate sub-skill:
+Based on what exists, route to the appropriate sub-skill. Check the
+dev-store first (canonical); fall back to the repo for legacy
+features:
 
 | State | Sub-skill |
 |-------|-----------|
-| No `docs/features/<FEATURE>/requirements.md` | `feature-requirements` |
-| Has `requirements.md`, no `plan.md` | `feature-plan` |
-| Has `plan.md` with unchecked `- [ ]` items | `feature-implement` |
+| Neither `requirements.html` (dev-store) nor `requirements.md` (repo) | `feature-requirements` |
+| Has requirements, no `plan.html` (dev-store) or `plan.md` (repo) | `feature-plan` |
+| Has plan with unchecked checklist items | `feature-implement` |
 | All plan items checked, on a feature branch | `feature-review` |
 
-To check for unchecked phases:
+To check for unchecked items:
 
-```bash
-grep -c '\- \[ \]' docs/features/$FEATURE/plan.md 2>/dev/null || echo 0
-```
+- **HTML plan**: count `<li data-checklist-item="phase-…">` elements
+  whose `<input>` lacks the `checked` attribute. A quick scan:
+
+  ```bash
+  grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*><input[^>]*>' \
+      ~/.claude/feature-docs/$PROJECT/$FEATURE/plan.html 2>/dev/null \
+    | grep -vc ' checked' || echo 0
+  ```
+
+- **Markdown plan** (legacy):
+
+  ```bash
+  grep -c '\- \[ \]' docs/features/$FEATURE/plan.md 2>/dev/null || echo 0
+  ```
 
 **Do NOT use the Skill tool to invoke sub-skills.** All feature sub-skills have
 `disable-model-invocation: true`, which blocks Skill tool invocation entirely.

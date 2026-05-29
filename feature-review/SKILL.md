@@ -32,18 +32,32 @@ Tell the user you've switched to main and pulled.
 
 ## Step 2: Find the feature docs
 
-If `$ARGUMENTS` is provided, use it as the feature name (FEATURE). Otherwise,
-ask the user (we're on main now, so the branch name can't be used for
-inference). Read:
-- `docs/features/<FEATURE>/requirements.md`
-- `docs/features/<FEATURE>/plan.md`
-- `CLAUDE.md`
+If `$ARGUMENTS` is provided, use it as the feature name (FEATURE).
+Otherwise, ask the user (we're on main now, so the branch name can't
+be used for inference).
+
+Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+
+Locate the docs, preferring the dev-store HTML and falling back to
+legacy markdown:
+
+- Requirements:
+  `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if it
+  exists, otherwise `docs/features/<FEATURE>/requirements.md`.
+- Plan: `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html` if it
+  exists, otherwise `docs/features/<FEATURE>/plan.md`.
+
+Call the chosen paths `REQUIREMENTS_PATH` and `PLAN_PATH`.
+
+Read these and `CLAUDE.md`.
 
 ## Step 3: Verify all phases are merged
 
-Read `plan.md` to count the phases (look for `### Phase N:` headers in the
-Checklist section). For each phase, verify the corresponding branch landed
-on main. Different merge styles to handle:
+Read `PLAN_PATH` to count the phases. In an HTML plan, count the
+distinct phase prefixes in `data-checklist-item="phase-<N>-..."`
+attributes; in a markdown plan, count `### Phase N:` headers. For each
+phase, verify the corresponding branch landed on main. Different merge
+styles to handle:
 
 - **Merge commits**: `git log --merges main --grep "features/<FEATURE>-p<N>"`
 - **Squash/rebase**: `git log main --oneline | grep -i "<FEATURE>"` may catch
@@ -56,24 +70,30 @@ should only run after everything has landed.
 
 ## Step 4: Establish the review baseline
 
-Find the earliest commit on main that touched the feature's docs directory,
-and use its parent as the baseline:
+Find the earliest commit on main that touched the feature's docs
+directory, and use its parent as the baseline:
 
 ```bash
 EARLIEST=$(git log --reverse --diff-filter=A --format=%H -- "docs/features/<FEATURE>/" | head -1)
 BASELINE=$(git rev-parse "$EARLIEST^")
 ```
 
-The diff range for review is `$BASELINE..main`. Show the user the diff stat
-and log:
+The diff range for review is `$BASELINE..main`. Show the user the
+diff stat and log:
 
 ```bash
 git diff $BASELINE..main --stat
 git log $BASELINE..main --oneline
 ```
 
-The range may include unrelated work that landed in parallel — that's fine.
-The reviewer will be told to focus on feature-relevant changes.
+The range may include unrelated work that landed in parallel — that's
+fine. The reviewer will be told to focus on feature-relevant changes.
+
+If `docs/features/<FEATURE>/` doesn't exist in the repo (the project's
+`.feature-workflow.toml` has all `[export]` keys set to `"none"`, so
+nothing was exported here), the `git log` lookup returns empty. In
+that case, ask the user for a baseline — typically the commit just
+before the first phase MR for this feature landed on main.
 
 ## Step 5: Fetch MR descriptions
 
@@ -111,14 +131,15 @@ mention it in the prompt.
 Use the Agent tool with `run_in_background: true` to spawn a reviewer subagent.
 Tell the user the reviewer is running and will surface findings shortly.
 
-Prompt for the reviewer:
+Prompt for the reviewer (substitute the actual REQUIREMENTS_PATH and
+PLAN_PATH resolved in Step 2):
 
 > You are reviewing the complete merged implementation of a feature on main.
 >
 > Diff stat: <include diff stat from Step 4>
 > Diff range: `$BASELINE..main` (substitute the actual SHA)
-> Requirements: `docs/features/<FEATURE>/requirements.md`
-> Plan: `docs/features/<FEATURE>/plan.md`
+> Requirements: `<REQUIREMENTS_PATH>`
+> Plan: `<PLAN_PATH>`
 > MR descriptions: <paste collated descriptions from Step 5, or "no MRs
 > available" if Step 5 was skipped>
 >

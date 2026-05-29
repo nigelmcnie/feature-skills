@@ -21,9 +21,11 @@ Wait for their response. If they say no, stop here.
 
 ## Step 0: Establish the feature name
 
-If `$ARGUMENTS` is provided, use it as the feature name (FEATURE). Otherwise,
-infer from the branch name if you're on a feature branch (e.g.
-`features/<name>-pN`), or ask the user.
+If `$ARGUMENTS` is provided, use it as the feature name (FEATURE).
+Otherwise, infer from the branch name if you're on a feature branch
+(e.g. `features/<name>-pN`), or ask the user.
+
+Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
 
 ## Step 0.5: Choose target branch
 
@@ -35,35 +37,90 @@ git branch --show-current
 
 - **On `main` (or the default branch)**: ask the user:
   > Should I put these changes on a new branch, or commit them directly to main?
-  - If branch: count existing `iterate-feedback-N.md` files in
-    `docs/features/<FEATURE>/` (call this M). Create branch
+  - If branch: count completed review-feedback rounds (archived
+    HTML in `~/.claude/feature-docs/<PROJECT>/<FEATURE>/.feedback-archive/`
+    plus archived markdown in `docs/features/<FEATURE>/.feedback-archive/`).
+    Call the total M. Create branch
     `features/<FEATURE>-iterate-<M+1>` and switch to it.
-  - If direct: stay on main. Tell the user explicitly that the next commit
-    will land on main.
-- **On any other branch**: stay there (e.g. invoked manually mid-flow on a
-  feature branch that's still in progress).
+  - If direct: stay on main. Tell the user explicitly that the next
+    commit will land on main.
+- **On any other branch**: stay there (e.g. invoked manually mid-flow
+  on a feature branch that's still in progress).
 
 ## Step 1: Gather feedback
 
-Collect feedback from all sources:
-- Reviewer subagent output (from the current conversation)
-- Any review synthesis documents in `docs/features/<FEATURE>/` (the highest-
-  numbered `review-feedback-N.md` is the authoritative one — the user's
-  filled-in "Your thoughts" entries override your take)
-- Human comments (from the current conversation)
+The review synthesis doc is canonical HTML at
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`
+when feature-review has produced one. Legacy markdown synthesis docs
+at `docs/features/<FEATURE>/review-feedback-<N>.md` are still
+supported for transitional reviews.
+
+Pick the highest-numbered synthesis doc (HTML preferred over markdown
+if both exist for the same N).
+
+### HTML synthesis doc (canonical)
+
+The HTML synthesis doc is a form: the user fills in "Your thoughts"
+fields and clicks **Copy responses** to emit a JSON blob in this
+shape:
+
+```json
+{
+  "doc": "docs/features/<FEATURE>/review-feedback-<N>",
+  "responses": { "1": "user text or empty string", ... },
+  "routine_flags": { "19": "comment", ... }
+}
+```
+
+If the user pasted the blob already (it should be visible above in
+the conversation), parse it. If not, ask them to click **Copy
+responses** in the open HTML and paste the JSON.
+
+- Empty string in `responses` = agree with your take on that item.
+- Non-empty string = user direction; use it.
+- Items in `routine_flags` are routine items the user wants to
+  discuss — their comment explains why. Treat as needing your call.
+
+The user may also have left click-to-comment annotations on
+`requirements.html` or `plan.html` and pasted a `{"doc": ".../<file>",
+"comments": [...]}` blob. Fold those in as additional feedback.
+
+### Markdown synthesis doc (legacy)
+
+Read the highest-numbered `review-feedback-N.md`. The user's
+filled-in "Your thoughts" entries override your take.
+
+### Other sources
+
+- Reviewer subagent output (from the current conversation).
+- Human comments (from the current conversation).
 
 ## Step 2: Plan before acting
 
-Before making any changes, produce a brief plan in the conversation listing each
-feedback item and what you'll do:
-- **Fix:** what you'll change and how
-- **Skip:** why it doesn't need addressing (e.g. already handled, disagree, out of scope)
+Before making any changes, produce a brief plan in the conversation
+listing each feedback item and what you'll do:
 
-Ask the user to confirm the plan before proceeding. Once confirmed, make all the changes.
+- **Fix:** what you'll change and how.
+- **Skip:** why it doesn't need addressing (e.g. already handled,
+  disagree, out of scope).
 
-After making changes, capture decisions from the feedback file before removing it.
-Add a "Review decisions" section to the feature's `requirements.md` (or append to
-existing). For each item:
+Ask the user to confirm the plan before proceeding. Once confirmed,
+make all the changes.
+
+### Capture decisions
+
+After making changes, capture decisions into the requirements doc
+before archiving the synthesis doc.
+
+The canonical requirements doc is
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if it
+exists; otherwise the legacy `docs/features/<FEATURE>/requirements.md`.
+Append (or extend) a **Review decisions** section. In the HTML
+version, this is `<section id="review-decisions">`; in markdown, a
+`## Review decisions` heading.
+
+For each item:
+
 - User-annotated items: `**User:**` prefix, capture their decision.
 - Fixes: one line — what was wrong, what was done.
 - Declined items: one line — what was suggested, why it was skipped.
@@ -71,8 +128,33 @@ existing). For each item:
 
 Number each round sequentially.
 
-Archive the feedback file instead of deleting it (preserves a record for
-later analysis):
+If the requirements doc was updated in HTML form, re-run the export
+when `.feature-workflow.toml`'s `[export].requirements` opts in:
+
+```bash
+feature-html-to-md \
+    ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
+    docs/features/<FEATURE>/requirements.md
+```
+
+(or `cp` for `html`). Skip if `none` or absent.
+
+### Archive the synthesis doc
+
+Archive the feedback file rather than deleting it (preserves a record
+for later analysis).
+
+**HTML synthesis doc**:
+
+```bash
+mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
+mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/review-feedback-<N>.html \
+   ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/
+```
+
+The dev-store is local-only — no gitignore needed.
+
+**Markdown synthesis doc** (legacy):
 
 ```bash
 mkdir -p docs/features/<FEATURE>/.feedback-archive
@@ -80,8 +162,9 @@ mv docs/features/<FEATURE>/review-feedback-<N>.md \
    docs/features/<FEATURE>/.feedback-archive/
 ```
 
-Ensure the archive directory is gitignored locally (not committed). Append
-the pattern to the repo's local exclude file if it's not already there:
+Ensure the archive directory is gitignored locally (not committed).
+Append the pattern to the repo's local exclude file if it's not
+already there:
 
 ```bash
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
@@ -96,30 +179,42 @@ Invoke `/feature-qa` and work through all checks it defines.
 
 ## Step 3.5: Commit, push, and (if on a branch) create an MR
 
-Commit all changed files — implementation changes and the updated
-`docs/features/<FEATURE>/requirements.md` — with the message
-`feat(<FEATURE>): address review feedback` and push.
+Commit all changed files — implementation changes plus whichever
+requirements file ended up in the repo via the export step (if any) —
+with the message `feat(<FEATURE>): address review feedback` and push.
 
-If you're on a `features/<FEATURE>-iterate-N` branch, create an MR after
-pushing. If you're on main (per the Step 0.5 choice), no MR is needed —
-the commit has already landed.
+If `.feature-workflow.toml`'s `[export].requirements` is `none` or
+absent, the requirements changes are local-only in the dev-store and
+nothing requirements-related gets committed. The implementation
+changes still commit.
+
+If you're on a `features/<FEATURE>-iterate-N` branch, create an MR
+after pushing. If you're on main (per the Step 0.5 choice), no MR is
+needed — the commit has already landed.
 
 ## Step 4: Re-review
 
 After making changes, spawn a reviewer subagent using the Agent tool with
 `run_in_background: true`. Tell the user the re-reviewer is running.
 
-Prompt for the re-reviewer:
+Prompt for the re-reviewer (substitute dev-store paths if the HTML
+docs exist, otherwise legacy markdown paths):
 
 > You are reviewing an implementation after a round of iteration.
 > Read the full diff with `git diff main`.
-> Read the requirements at `docs/features/<FEATURE>/requirements.md`.
-> Read the plan at `docs/features/<FEATURE>/plan.md`.
+> Read the requirements at
+> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
+> (fall back to `docs/features/<FEATURE>/requirements.md` if the HTML
+> doesn't exist).
+> Read the plan at
+> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`
+> (fall back to `docs/features/<FEATURE>/plan.md` if the HTML doesn't
+> exist).
 > Read `CLAUDE.md`.
 >
-> Check whether the previous review feedback has been addressed, and flag
-> any new issues introduced by the changes. Also check whether the changes
-> still align with the requirements — not just the plan.
+> Check whether the previous review feedback has been addressed, and
+> flag any new issues introduced by the changes. Also check whether
+> the changes still align with the requirements — not just the plan.
 >
 > Be specific with file paths and line numbers.
 
@@ -151,13 +246,12 @@ Present the triage in chat — do not write a synthesis document. Format:
 
 Wait for response. Apply the "Will apply" items plus the resolved questions.
 
-If any "Need your call" answers reveal substantive decisions, capture them
-in the "Review decisions" section of
-`docs/features/<FEATURE>/requirements.md` (same format as Step 2).
+If any "Need your call" answers reveal substantive decisions,
+capture them in the **Review decisions** section of
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
+(legacy: `docs/features/<FEATURE>/requirements.md`). Same format as
+Step 2. Re-export if `.feature-workflow.toml` opts in for
+requirements.
 
-Summarise what changed, what was declined and why, and whether all quality
-checks pass.
-
-Before removing the synthesis document, capture decisions into the "Review decisions"
-section of the feature's `requirements.md` (same format as Step 2). Remove the
-synthesis document once decisions are captured.
+Summarise what changed, what was declined and why, and whether all
+quality checks pass.
