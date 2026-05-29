@@ -1,19 +1,24 @@
 # Feedback Synthesis Template
 
-Shared structure and triage logic for feedback synthesis documents
-produced by the feature workflow.
+Reference structure and triage logic for feedback synthesis
+documents produced by the feature workflow.
 
 **Format status:**
 
-- `feature-requirements` produces synthesis docs in **HTML only**
-  (Phase 1B). See `~/.claude/skills/feature/feedback-template.html`.
-- `feature-review` still produces synthesis docs in this **markdown**
-  format. (Phase 1A flip pending.)
+Both `feature-requirements` and `feature-review` are now **HTML-only**.
+Synthesis docs are rendered from
+`~/.claude/skills/feature/feedback-template.html` into the dev-store at
+`~/.claude/feature-docs/<project>/<feature>/{requirements,review}-feedback-<N>.html`,
+auto-opened in Chrome, and round-tripped via a "Copy responses" JSON
+blob the user pastes back.
 
-The structural and triage guidance below applies to both formats.
+This file is kept as the canonical reference for the triage tiers
+(Needs your input / Feedback / Routine), item numbering, and the
+"My take" / "Your thoughts" convention. The markdown structure shown
+below is historical — the live structure is in the HTML template.
 
-`feature-plan` and `feature-iterate` handle reviewer feedback inline in
-chat rather than producing a synthesis document.
+`feature-plan` and `feature-iterate` handle reviewer feedback inline
+in chat rather than producing a synthesis document.
 
 ## Numbering
 

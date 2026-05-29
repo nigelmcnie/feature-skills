@@ -167,28 +167,95 @@ PLAN_PATH resolved in Step 2):
 
 ## Step 8: Produce feedback synthesis document
 
-When the reviewer returns, check how many `review-feedback-N.md` files already exist
-in `docs/features/<FEATURE>/` and create the next numbered one (e.g.
-`review-feedback-1.md` if none exist, `review-feedback-2.md` if one exists, etc.).
+For each piece of reviewer feedback, decide your take. **My take**
+should say whether it should be fixed, is a blocker, or can be
+ignored — with reasoning. Address blocking issues before suggestions
+or nitpicks.
 
-Follow the format and triage guidance in
-`/home/nigel/.claude/skills/feature/feedback-template.md`. For each piece
-of reviewer feedback, **My take** should say whether it should be fixed,
-is a blocker, or can be ignored — with reasoning. Address blocking issues
-before suggestions or nitpicks.
+### Triage
 
-Tell the user the synthesis document is ready and ask them to fill in their
-thoughts on items in the **Needs your input** and **Feedback** sections.
+Items get bucketed into three tiers:
 
-Once the user indicates they are done, summarise which items will be addressed in
-`/feature-iterate` and which are being set aside. The synthesis document serves as
-the brief for the iteration step — leave it in place for `/feature-iterate` to consume.
+- **Needs your input**: product/conceptual decisions, scope or
+  phasing trade-offs, deferral decisions, naming for concepts,
+  anything you're not confident about, anything where you might be
+  making assumptions about dev velocity.
+- **Routine**: only items you're highly confident are
+  uncontroversial — factual citation/path fixes, naming mechanics
+  (rename X to Y), wording polish, defensive-test additions,
+  observability/logging granularity, schema minor specs.
+- **Feedback** (the middle): everything else, in the reviewer's
+  original order.
+
+When in doubt, prefer **Feedback** over **Routine**. The cost of a
+Feedback item that turns out to be uncontroversial is small; the
+cost of a misclassified Routine item is larger.
+
+Item-level guidance:
+
+- **Numbered titles**: descriptive enough that a reader grasps the
+  issue at a glance. Number continuously across all three tiers
+  (1, 2, 3, …), not restarting per section.
+- **Detail paragraph**: include when the title alone isn't
+  self-evident. Skip in the Routine tier.
+- **My take**: focus on substance. Length matches the complexity of
+  the call. In the Routine tier, keep it to one line.
+- **"Your thoughts"**: left blank in the top and middle tiers (the
+  HTML form provides the textareas). The Routine tier has no input
+  — the user pushes back in chat if needed.
+
+### Pick the next N
+
+Count existing review-feedback files across both the dev-store
+(`~/.claude/feature-docs/<PROJECT>/<FEATURE>/`, including
+`.feedback-archive/`) and the legacy repo location
+(`docs/features/<FEATURE>/`, including `.feedback-archive/`). Take
+the max N and increment. If none exist, `N = 1`.
+
+### Write the HTML synthesis doc
+
+Use `~/.claude/skills/feature/feedback-template.html` as the basis.
+Copy its CSS and JavaScript verbatim. Render the triaged items into
+the template's three-tier structure (Needs your input / Feedback /
+Routine).
+
+Write to
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`.
+Create parent dirs with `mkdir -p` if needed.
+
+Update in the template:
+- `<title>`, the `<h1>`, the subtitle (e.g. "Review Feedback Synthesis #N").
+- The meta line (item counts).
+- The textarea total in the footer.
+- The JS `docId` constant — e.g.
+  `docs/features/<FEATURE>/review-feedback-<N>`.
+
+### Open it
+
+```bash
+google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html &
+```
+
+The trailing `&` backgrounds the browser process so the agent doesn't
+wait.
+
+### Hand off
+
+Tell the user the synthesis doc is open. You'll wait for them to
+fill in "Your thoughts" for items needing input, click **Copy
+responses**, and paste the JSON blob back. The user may also leave
+click-to-comment annotations on `requirements.html` or `plan.html`
+and paste a `{"doc": ".../<file>", "comments": [...]}` blob.
+
+When the JSON arrives, parse it, and summarise which items will be
+addressed in `/feature-iterate` and which are being set aside. The
+synthesis HTML stays in dev-store for `/feature-iterate` to consume.
 
 ## Step 9: Handoff
 
-If there are findings to address and the user wants to act on them — any of:
-"let's fix those", "address the feedback", "iterate", "go ahead", or similar
-— automatically invoke `/feature-iterate <FEATURE>`.
+If there are findings to address and the user wants to act on them —
+any of: "let's fix those", "address the feedback", "iterate", "go
+ahead", or similar — automatically invoke `/feature-iterate <FEATURE>`.
 
 ## Step 10: Mark shipped
 
@@ -268,5 +335,21 @@ If `none` or absent, skip the export and skip the commit.
 If something was exported, commit the change directly to the current
 branch (we're on main; see Step 1) with the message
 `docs: mark <FEATURE> as shipped` and push.
+
+### Archive any unprocessed synthesis docs
+
+If the user ships without iteration, the synthesis HTML from Step 8
+is still live in
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`.
+Archive it now:
+
+```bash
+mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
+mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/review-feedback-*.html \
+   ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/ 2>/dev/null || true
+```
+
+If `/feature-iterate` already ran, the file is already archived and
+the move is a no-op.
 
 Tell the user the feature is marked shipped.
