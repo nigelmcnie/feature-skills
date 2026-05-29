@@ -1,8 +1,10 @@
 <!--
   Implementation Plan Template — HTML version.
 
-  This file is a reference template for generating HTML plan docs.
-  feature-plan produces a plan.html alongside the canonical plan.md.
+  This file is the reference template for generating HTML plan docs.
+  feature-plan writes plan.html to the dev-store; HTML is canonical.
+  Markdown export (if .feature-workflow.toml opts in) is a snapshot,
+  not the source of truth.
 
   HOW TO USE (for the agent):
     1. Copy this entire file as a starting point for the new plan HTML.
@@ -14,7 +16,13 @@
          Phase 1..N (with phase headers), QC, Checklist.
     5. Render code blocks as <pre><code class="language-python">...</code></pre>
        (highlight.js will syntax-highlight on load).
-    6. Render the checklist as <li><input type="checkbox"><span class="label">...</span></li>.
+    6. Render checklist items as
+         <li data-checklist-item="phase-<N>-<step>"><input type="checkbox"><span class="label">...</span></li>
+       — each <li> MUST carry a stable data-checklist-item ID of the
+       form "phase-<phase-number>-<step-index>" (e.g. phase-1-3 for the
+       third step of Phase 1). feature-implement marks items checked
+       by this ID, so the values must be unique and stable across
+       re-renders.
     7. Update the JS `docId` constant.
     8. Keep all CSS and JavaScript verbatim.
     9. Save to ~/.claude/feature-docs/<project>/<feature>/plan.html.
@@ -504,7 +512,7 @@
   <h2>Checklist</h2>
   <h3>Phase 1: Title</h3>
   <ul class="checklist">
-    <li><input type="checkbox"><span class="label">Checklist item here.</span></li>
+    <li data-checklist-item="phase-1-1"><input type="checkbox"><span class="label">Checklist item here.</span></li>
   </ul>
 </section>
 

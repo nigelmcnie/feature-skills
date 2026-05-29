@@ -1,6 +1,6 @@
 ---
 name: feature-plan
-description: Create an implementation plan for a feature with approved requirements. Use after requirements are approved, when the user says it's time to plan, or when there is a requirements.md but no plan.md yet for a feature they want to implement.
+description: Create an implementation plan for a feature with approved requirements. Writes the canonical plan.html to the developer-scoped store and optionally exports markdown/HTML to the repo via .feature-workflow.toml. Use after requirements are approved, when the user says it's time to plan, or when there is a requirements doc but no plan yet for a feature they want to implement.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 argument-hint: "[feature-name]"
@@ -10,6 +10,12 @@ argument-hint: "[feature-name]"
 
 You are creating an implementation plan for a feature whose requirements
 have been approved.
+
+The canonical plan doc is HTML in the developer-scoped store at
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`, where `<PROJECT>`
+is `basename $(git rev-parse --show-toplevel)`. The repo gets an
+exported snapshot (markdown or HTML) when `.feature-workflow.toml` opts
+in.
 
 ## Model check
 
@@ -40,20 +46,48 @@ Do not silently switch branches — uncommitted work might be lost.
 
 ## Step 1: Read context
 
-Read the following files:
-- `docs/features/$ARGUMENTS/requirements.md` (approved requirements) —
-  including any **Indicative implementation notes** section at the bottom,
-  which carries forward plan-level context that didn't belong in the
-  requirements body
-- `CLAUDE.md` (architecture and conventions)
-- All source modules referenced in the requirements' technical approach
-- Existing test files to understand testing patterns
+Resolve `PROJECT` once and reuse it:
+
+```bash
+PROJECT=$(basename $(git rev-parse --show-toplevel))
+```
+
+`$ARGUMENTS` is the feature name (`<FEATURE>`).
+
+Read the following:
+
+- The approved requirements for this feature, in this order of
+  preference:
+  1. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if
+     it exists — the canonical location.
+  2. Otherwise `docs/features/<FEATURE>/requirements.md` — the
+     legacy/exported location.
+
+  Including any **Indicative implementation notes** section at the
+  bottom, which carries forward plan-level context that didn't belong
+  in the requirements body.
+- `CLAUDE.md` (architecture and conventions).
+- All source modules referenced in the requirements' technical
+  approach.
+- Existing test files to understand testing patterns.
 
 ## Step 2: Draft
 
-Plans are produced in **two formats** during Phase 2A. Markdown is
-canonical (committed to the repo, source of truth for the workflow,
-read by the implementing agent). HTML is the rich review surface.
+Use `~/.claude/skills/feature/plan-template.html` as the basis. Copy
+its CSS and JavaScript verbatim. Render the plan into the template's
+structure: TOC sidebar, sections per the plan's headings, syntax-
+highlighted code blocks, phase badges, clickable checklist, click-to-
+comment widget, sticky footer.
+
+Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`. Create
+parent dirs with `mkdir -p` if needed.
+
+Update in the template:
+
+- `<title>`, the `<h1>` (feature name), the subtitle.
+- The TOC entries to match the actual sections in the plan (use `id`
+  attributes on each `<section>` that match the TOC's `href` anchors).
+- The JS `docId` constant — e.g. `docs/features/<FEATURE>/plan`.
 
 ### Plan structure
 
@@ -69,9 +103,9 @@ A good implementation plan contains:
   - Key code snippets (interfaces, data structures, function signatures)
   - What tests are needed
   - MR chain (each phase = one MR, invoked separately)
-- **Checklist**: a flat checklist of all steps across all phases at the
-  bottom of the document. The implementing agent checks items off as
-  it works.
+- **Checklist**: a flat checklist of all steps across all phases at
+  the bottom of the document. The implementing agent checks items off
+  as it works.
 
 ### Detail level
 
@@ -103,20 +137,31 @@ Do NOT include:
 
 ### Checklist format
 
-The flat checklist at the bottom **must** use phase headers so the
-implementing agent can identify phase boundaries unambiguously:
+Every checklist `<li>` **must** carry a stable
+`data-checklist-item="phase-<N>-<step>"` attribute. `<N>` is the phase
+number; `<step>` is the 1-indexed position of the item within that
+phase. Example:
 
-```markdown
-## Checklist
-
-### Phase 1: <name>
-- [ ] Step A
-- [ ] Step B
-
-### Phase 2: <name>
-- [ ] Step C
-- [ ] Step D
+```html
+<section id="checklist">
+  <h2>Checklist</h2>
+  <h3>Phase 1: Foo</h3>
+  <ul class="checklist">
+    <li data-checklist-item="phase-1-1"><input type="checkbox"><span class="label">Step A.</span></li>
+    <li data-checklist-item="phase-1-2"><input type="checkbox"><span class="label">Step B.</span></li>
+  </ul>
+  <h3>Phase 2: Bar</h3>
+  <ul class="checklist">
+    <li data-checklist-item="phase-2-1"><input type="checkbox"><span class="label">Step C.</span></li>
+  </ul>
+</section>
 ```
+
+`feature-implement` marks items checked by `data-checklist-item` ID
+rather than positional or text matching, so the IDs must be unique
+and stable across re-renders. If the plan iterates and items get
+reordered or inserted, mint new IDs for new items but preserve
+existing IDs for items that already exist.
 
 Items within each phase are ordered as they will be implemented.
 
@@ -126,56 +171,55 @@ Reference `CLAUDE.md` for quality control steps rather than hardcoding
 them. Instruct the implementing agent to follow whatever `CLAUDE.md`
 says at implementation time.
 
-### Pass 1 — Write the markdown plan
+### Export to the repo (if configured)
 
-Write to `docs/features/$ARGUMENTS/plan.md`, following the structure
-and detail-level guidance above. Include:
+Check `.feature-workflow.toml` at the repo root. The relevant key is
+`[export].plan`. If the file is absent or the key is missing or set to
+`"none"`, skip this step.
 
-- Key technical decisions with code snippets
-- File structure showing what's created/modified
-- Phase breakdown with test descriptions and MR chain
-- Flat checklist of all steps at the bottom
+Otherwise:
 
-### Pass 2 — Render the HTML plan
+- **`markdown`**:
 
-Use `~/.claude/skills/feature/plan-template.html` as the basis. Copy its
-CSS and JavaScript verbatim. Render the markdown plan into the template's
-structure: TOC sidebar, sections per the markdown's headings, syntax-
-highlighted code blocks, phase badges, clickable checklist, click-to-
-comment widget, sticky footer.
+  ```bash
+  mkdir -p docs/features/<FEATURE>
+  feature-html-to-md \
+      ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html \
+      docs/features/<FEATURE>/plan.md
+  ```
 
-Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`, where
-`<PROJECT>` is `basename $(git rev-parse --show-toplevel)`. Create
-parent dirs with `mkdir -p` if needed.
+- **`html`**:
 
-Update in the template:
-- `<title>`, the `<h1>` (feature name), the subtitle
-- The TOC entries to match the actual sections in the plan (use `id`
-  attributes on each `<section>` that match the TOC's `href` anchors)
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/plan`
+  ```bash
+  mkdir -p docs/features/<FEATURE>
+  cp ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html \
+     docs/features/<FEATURE>/plan.html
+  ```
+
+Remember the export-target path; you'll commit it at handoff (Step 6).
 
 ### Open it
-
-Open the HTML in the user's browser:
 
 ```bash
 google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html &
 ```
 
-The trailing `&` backgrounds the browser process so the agent doesn't wait.
+The trailing `&` backgrounds the browser process so the agent doesn't
+wait.
 
 ## Step 3: Present and review in parallel
 
-Tell the user the plan is ready for their review. Spawn a reviewer subagent
-using the Agent tool with `run_in_background: true` so it runs while the
-human reads. Tell the user the reviewer is running and they can start reading
-immediately.
+Tell the user the plan is ready for their review and that the HTML is
+open in Chrome. Spawn a reviewer subagent using the Agent tool with
+`run_in_background: true` so it runs while the human reads.
 
 Prompt for the reviewer:
 
 > You are reviewing an implementation plan for a feature.
-> Read the plan at `docs/features/$ARGUMENTS/plan.md`.
-> Read the requirements at `docs/features/$ARGUMENTS/requirements.md`.
+> Read the plan at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`.
+> Read the requirements at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
+> (fall back to `docs/features/<FEATURE>/requirements.md` if the HTML
+> doesn't exist).
 > Read `CLAUDE.md` for architectural context.
 >
 > Check:
@@ -192,12 +236,13 @@ Prompt for the reviewer:
 
 When the reviewer returns, triage each item into one of:
 
-- **Apply** — you agree with the reviewer, and the change is uncontroversial:
-  factual corrections, missed dependencies, citation/path fixes, polish,
-  wording. These get applied directly without asking.
-- **Ask** — the item involves a real decision: product semantics, naming
-  for concepts, scope or phasing trade-offs, deferral decisions, anything
-  strategic. Surface inline with your take.
+- **Apply** — you agree with the reviewer, and the change is
+  uncontroversial: factual corrections, missed dependencies,
+  citation/path fixes, polish, wording. These get applied directly
+  without asking.
+- **Ask** — the item involves a real decision: product semantics,
+  naming for concepts, scope or phasing trade-offs, deferral
+  decisions, anything strategic. Surface inline with your take.
 - **Skip** — you disagree with the reviewer or it's already covered.
   Briefly say why.
 
@@ -219,8 +264,8 @@ Present the triage in chat — do not write a synthesis document. Format:
 >
 > Reply with answers (or "go" to take my take on all of them) and I'll apply.
 
-The user may also leave click-to-comment annotations in `plan.html` and
-paste a JSON blob back. Format:
+The user may also leave click-to-comment annotations in `plan.html`
+and paste a JSON blob back. Format:
 
 ```json
 {
@@ -231,53 +276,77 @@ paste a JSON blob back. Format:
 }
 ```
 
-Fold those comments into the same triage — each comment is an additional
-piece of feedback. The user may paste comments alongside the reviewer's
-output, before it, or independently.
+Fold those comments into the same triage — each comment is an
+additional piece of feedback. The user may paste comments alongside
+the reviewer's output, before it, or independently.
 
 Wait for the user's response. Apply the "Will apply" items plus the
 resolved questions and any actionable comment annotations.
 
 If any "Need your call" answers reveal substantive design decisions
-(principles, reasoning, broader implications beyond the specific item),
-capture them in a "Design notes" section of
-`docs/features/<FEATURE>/requirements.md`. Keep entries to one or two
-lines, cite the review round.
+(principles, reasoning, broader implications beyond the specific
+item), capture them in a **Design notes** section of
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` (add
+the section if it doesn't exist). Keep entries to one or two lines,
+cite the review round. Re-run the requirements export if
+`.feature-workflow.toml` opts in for `requirements`.
 
-After applying changes to `plan.md`, **re-render the HTML** (Step 2 Pass 2)
-to keep `plan.html` in sync. The user may want to reload it.
+### Re-render plan.html
 
-Summarise what was applied to the user.
+After integrating the round of feedback, **rewrite `plan.html` from
+scratch** — a fresh render that incorporates all applied items.
+Preserve existing `data-checklist-item` IDs for unchanged steps; mint
+new IDs for new ones. The fresh-render discipline mirrors the
+historical markdown workflow: the canonical HTML reflects the full
+integrated state, not a patchwork of in-place edits.
+
+### Re-run the export (if configured)
+
+If `.feature-workflow.toml` opts in for `plan`, re-run the export
+step (markdown or HTML copy) so the repo snapshot reflects the
+integrated state.
+
+Summarise what was applied to the user. They can refresh the Chrome
+tab to see the new render.
 
 ## Step 5: Iterate
 
 If the user provides further feedback via any of:
-- Inline `note: ...` annotations in `plan.md`
-- Click-to-comment JSON pasted from `plan.html`
-- Direct chat instructions
+
+- Click-to-comment JSON pasted from `plan.html`.
+- Direct chat instructions.
 
 Then:
-1. Re-read `plan.md` to pick up any inline edits
-2. Apply the new feedback to `plan.md`
-3. Re-render `plan.html` from the updated markdown
-4. (If the changes are substantial) re-spawn the reviewer subagent on the
-   updated content
-5. Follow Step 4 (triage and process inline) for any new reviewer feedback
+
+1. Re-read `plan.html` to pick up its current state.
+2. Apply the new feedback by rewriting `plan.html` (fresh render).
+3. If the changes are substantial, re-spawn the reviewer subagent on
+   the updated HTML.
+4. Re-run the export (if configured).
+5. Follow Step 4 (triage) for any new reviewer feedback.
 
 Repeat until the user approves conversationally.
 
 ## Step 6: Handoff
 
-When the user signals approval — any of: "looks good", "approved", "let's
-implement", "ready to implement", "start building", "time to implement", or
-similar:
+When the user signals approval — any of: "looks good", "approved",
+"let's implement", "ready to implement", "start building", "time to
+implement", or similar:
 
-1. Check for any remaining `plan-feedback-N.md` files. If found, integrate
-   them (per Step 4) before proceeding.
-2. Commit `docs/features/<FEATURE>/plan.md` and `docs/features/<FEATURE>/requirements.md`
-   (the latter may have been updated with design notes) with the message
-   `docs(<FEATURE>): add implementation plan` and push.
-3. Tell the user:
+1. Re-confirm: integrate any unprocessed click-to-comment feedback
+   (per Step 4) before proceeding.
+2. Commit only what ended up in the repo via the export step:
+   - If `[export].plan` is `markdown` or `html`, commit
+     `docs/features/<FEATURE>/plan.{md,html}`.
+   - If `requirements.html` was updated with design notes in this
+     session and `[export].requirements` opts in, the regenerated
+     `docs/features/<FEATURE>/requirements.{md,html}` is also
+     pending — commit it too.
+   - If both keys are `none` or absent, there's nothing to commit —
+     the canonical HTML in the dev-store is local-only working
+     memory. Skip the commit step.
+3. Use the message `docs(<FEATURE>): add implementation plan`. Push.
+4. Tell the user:
 
    > Plan approved. When you're ready to implement, switch to your Sonnet session and run:
    >
