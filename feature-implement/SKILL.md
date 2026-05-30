@@ -163,10 +163,120 @@ inline in this conversation.
 
 ## Step 5: Commit and create MR
 
-Commit with a clear message referencing the feature and phase. Push the
-branch. Create an MR for this phase.
+Commit with a clear message referencing the feature and phase. Push
+the branch. Create an MR for this phase.
 
-## Step 6: Verification guidance
+Note the source branch (`features/<FEATURE>-p<N>`) and the MR URL.
+You'll watch the pipeline next.
+
+## Step 6: Watch the pipeline
+
+After the MR opens, CI fires. Don't end here — many failures the
+agent could fix immediately get discovered hours later by the
+human. Poll until the pipeline terminates and react.
+
+The CLAUDE.md SessionStart hook (or `git remote -v`) tells you
+whether this is GitLab (`glab`) or GitHub (`gh`). Use the matching
+toolchain throughout this step.
+
+### Wait for the pipeline to terminate
+
+CI registration sometimes lags a push by a few seconds; if the
+first status query returns "no pipeline found", wait ~10s and try
+again.
+
+Once the pipeline exists, watch it until it reaches a terminal
+state. Use a background Bash with an until-loop so you're notified
+when the pipeline terminates rather than burning context on
+hand-rolled polls.
+
+**GitLab:**
+
+```bash
+BRANCH=features/<FEATURE>-p<N>
+until glab ci status -b "$BRANCH" 2>/dev/null \
+  | grep -qE '(success|failed|canceled)'; do
+  sleep 60
+done
+glab ci status -b "$BRANCH"
+```
+
+**GitHub:** `gh run watch --exit-status <RUN_ID>` blocks until
+terminal and sets exit code from the run's status; use that
+directly.
+
+Upper bound: ~15 minutes. If the pipeline is still running at that
+point, kill the watcher, tell the user it's running slow, give the
+MR URL, and skip to Step 7. Don't hang here.
+
+### On terminal state
+
+- **Success** → continue to Step 7.
+- **Canceled** → tell the user, don't auto-retry.
+- **Failed** → triage and react.
+
+### Triage failed jobs
+
+Pull the failing job logs.
+
+- GitLab: `glab ci view -b "$BRANCH"` to see job names + statuses,
+  then `glab ci trace <job-id>` per failing job.
+- GitHub: `gh run view "$RUN_ID" --log-failed` shows only the
+  failing-step logs.
+
+Categorise each failure:
+
+- **Mechanical** (auto-fix attempted): ruff format / ruff lint /
+  import order / trailing whitespace / any failure the project's
+  QC tooling (`CLAUDE.md` § "QC before each commit") can fix by
+  running locally. Type-checker errors with obvious one-line fixes
+  (missing annotation, simple `cast`, narrow `assert`) count as
+  mechanical; cross-module type refactors do not.
+- **Strategic** (surface to user): test failures whose fix isn't
+  obvious from the diff, behaviour mismatches, security findings,
+  coverage drops, anything involving a real decision.
+- **Flaky / infra**: transient errors — runner timeout, network
+  failure, dependency-fetch failure. Retry the pipeline once
+  (`glab ci retry <pipeline-id>` / `gh run rerun --failed`) and
+  re-watch. If it fails again with the same shape, treat as
+  strategic.
+
+### Mechanical auto-fix loop
+
+For each mechanical failure:
+
+1. Reproduce locally: run the exact command the failing CI step
+   ran (the trace usually shows it verbatim). Confirm you see the
+   same error.
+2. Apply the fix locally — `uv run ruff format`,
+   `uv run ruff check --fix`, edit code for type errors, etc.
+3. Re-run feature-qa locally (full pass; see Step 4) so the fix
+   doesn't break anything else. **Do NOT use the Skill tool to
+   invoke `/feature-qa`** — read its SKILL.md and execute inline.
+4. Commit with the message
+   `fix(<FEATURE>): address CI <type> failures [phase <N>]` (e.g.
+   `address CI ruff failures`). Push.
+5. Go back to "Wait for the pipeline" and watch the new pipeline.
+
+Cap at **3 auto-fix attempts** per phase. If three rounds in and
+CI still fails, escalate — repeated failures usually mean the
+agent is fixing the wrong thing.
+
+### Escalation
+
+When escalating (strategic failure, cap reached, or pipeline
+still running at the 15-min limit):
+
+1. Tell the user the pipeline state, the failing job(s), and a
+   one-line summary of each.
+2. Quote the most relevant lines of the trace (`file:line` + error
+   message — not the whole log).
+3. Give the MR URL.
+4. Continue to Step 7 so the user has the complete picture.
+
+Don't loop on escalation. The human takes it from here.
+
+## Step 7: Verification guidance
 
 Tell the user what to manually verify to confirm this phase is working.
 Even if automated tests pass, give the human concrete steps:
