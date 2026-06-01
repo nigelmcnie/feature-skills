@@ -28,22 +28,32 @@ If not, locate the project's feature tracker. The canonical tracker is
 - **Otherwise**: ask the user what the feature is. Pick a short
   kebab-case name with them and confirm it. Call this FEATURE.
 
-## Step 2: Offer a feature tracker in sparse projects
+## Step 2: Offer workflow setup (first run)
 
-If neither `~/.claude/feature-docs/<PROJECT>/features.html` nor
-`features.md` at the repo root exists, assess whether this project
-looks sparse or substantial:
+If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
+previously declined setup — skip this step entirely.
 
-- **Sparse signals**: no `CLAUDE.md`, very few code files, mostly
-  empty repo, or only a context doc.
-- **Substantial signals**: `CLAUDE.md` exists, established source
-  tree, real commit history.
+If **any** of `~/.claude/feature-docs/<PROJECT>/features.html`,
+`features.md` at the repo root, or `.feature-workflow.toml` at the
+repo root exists, setup has already happened (perhaps partially) —
+skip this step.
 
-If the project is sparse, offer once:
+Otherwise, offer once:
 
-> This workflow plays nicely with a simple feature tracker. Want me
-> to scaffold one? It's optional — say no and we'll proceed without
-> it.
+> This project doesn't have the feature workflow set up yet. Want me
+> to scaffold it?
+>
+> 1. **features.html tracker** at
+>    `~/.claude/feature-docs/<PROJECT>/features.html` — canonical,
+>    local-only.
+> 2. **`.feature-workflow.toml`** at the repo root with all four
+>    `[export]` keys set to `"markdown"` — feature docs and the
+>    tracker get exported to `docs/features/<feature>/` and
+>    `features.md`, committed alongside code.
+>
+> Say no and we'll proceed without it (everything stays in the
+> dev-store, nothing in the repo). To change the choice later,
+> delete `~/.claude/feature-docs/<PROJECT>/.no-tracker`.
 
 If accepted:
 
@@ -52,16 +62,29 @@ If accepted:
    `<title>`, `<h1>`, and subtitle for the project. Leave the
    tables empty (the template's `<tr class="empty">` placeholders
    are fine).
-2. If `.feature-workflow.toml` exists and `[export].features` is
-   `markdown`, run `feature-html-to-md
-   ~/.claude/feature-docs/<PROJECT>/features.html features.md` and
-   commit `features.md` with the message `Add features tracker`,
-   then push. If the key is `html`, copy the file in place and commit
-   that instead. If the key is `none` or the toml is absent, skip
-   the commit — the tracker lives only in the dev-store.
+2. Write `.feature-workflow.toml` at the repo root with:
 
-If declined, or the project is substantial, proceed without a
-tracker. Do not raise it again.
+   ```toml
+   [export]
+   context = "markdown"
+   requirements = "markdown"
+   plan = "markdown"
+   features = "markdown"
+   ```
+3. Run `feature-html-to-md
+   ~/.claude/feature-docs/<PROJECT>/features.html features.md` to
+   produce the initial repo snapshot, and commit `features.md` and
+   `.feature-workflow.toml` together with the message
+   `Add features tracker + workflow config`, then push.
+
+If declined:
+
+```bash
+mkdir -p ~/.claude/feature-docs/$PROJECT
+touch ~/.claude/feature-docs/$PROJECT/.no-tracker
+```
+
+Proceed without a tracker. Do not raise the offer again.
 
 ## Step 3: Detect state
 

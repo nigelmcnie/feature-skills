@@ -12,7 +12,7 @@ This is the historical ledger a future requirements session will draw on — not
 requirements itself.
 
 The primary source of context is the **current conversation**: distill what's
-been discussed into the structure outlined in Step 3.
+been discussed into the structure outlined in Step 4.
 
 HTML is canonical; it lives in a developer-scoped store at
 `~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html`, where `<PROJECT>`
@@ -38,9 +38,67 @@ the `features.md` row after — it's cheap to fix. Don't pre-validate by
 asking.
 
 Store the chosen name as FEATURE. Mention the name in your "done" message
-at Step 7 so the user knows what you chose.
+at Step 9 so the user knows what you chose.
 
-## Step 2: Read context
+## Step 2: Workflow setup (first run)
+
+Resolve `PROJECT` once: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+
+The feature workflow needs two pieces to fully engage with the repo:
+
+1. **features.html** at `~/.claude/feature-docs/<PROJECT>/features.html`
+   — the canonical project-level tracker (local-only).
+2. **`.feature-workflow.toml`** at the repo root — opts the repo into
+   exporting feature docs (markdown / HTML / none per artifact).
+
+Check setup state and act:
+
+- **If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists**: the
+  user declined setup previously. Skip this step; the rest of the
+  skill runs dev-store-only.
+- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists, OR
+  `features.md` exists at the repo root, OR `.feature-workflow.toml`
+  exists at the repo root**: setup has happened (perhaps partially).
+  Skip this step.
+- **Otherwise**: ask the user once:
+
+  > This project doesn't have the feature workflow set up yet. Want
+  > me to scaffold it?
+  >
+  > 1. **features.html tracker** at
+  >    `~/.claude/feature-docs/<PROJECT>/features.html` — canonical,
+  >    local-only.
+  > 2. **`.feature-workflow.toml`** at the repo root with all four
+  >    `[export]` keys set to `"markdown"` — feature docs and the
+  >    tracker get exported to `docs/features/<feature>/` and
+  >    `features.md`, committed alongside code.
+  >
+  > Say no and I'll just write to the dev-store (private to your
+  > machine, nothing in the repo). To change the choice later,
+  > delete `~/.claude/feature-docs/<PROJECT>/.no-tracker`.
+
+  - **Accept**: create
+    `~/.claude/feature-docs/<PROJECT>/features.html` from
+    `~/.claude/skills/feature/features-template.html` (set
+    `<title>`, `<h1>`, subtitle for the project; leave tables
+    empty). Write `.feature-workflow.toml` at the repo root with:
+
+    ```toml
+    [export]
+    context = "markdown"
+    requirements = "markdown"
+    plan = "markdown"
+    features = "markdown"
+    ```
+
+  - **Decline**: write the marker:
+
+    ```bash
+    mkdir -p ~/.claude/feature-docs/$PROJECT
+    touch ~/.claude/feature-docs/$PROJECT/.no-tracker
+    ```
+
+## Step 3: Read context
 
 Read:
 - `CLAUDE.md` (architecture and conventions)
@@ -48,7 +106,7 @@ Read:
   avoid duplicating
 - Any specific docs the user has pointed to in the conversation
 
-## Step 3: Draft context.html
+## Step 4: Draft context.html
 
 Use `~/.claude/skills/feature/context-template.html` as the basis. Copy
 its CSS and JavaScript verbatim. Render the conversation's distilled
@@ -87,7 +145,7 @@ phase breakdowns, and wishlist features out. Capture *why* this came
 up, not just *what* was discussed. Acknowledge unknowns — a clear
 "open question" beats a half-formed guess.
 
-## Step 4: Export to the repo (if configured)
+## Step 5: Export to the repo (if configured)
 
 Check `.feature-workflow.toml` at the repo root. The relevant key is
 `[export].context`. If the file is absent or `context` is missing or
@@ -114,9 +172,9 @@ Otherwise:
   ```
 
 Remember the export-target path (the markdown or HTML file just written
-into the repo); you'll commit it in Step 7.
+into the repo); you'll commit it in Step 8.
 
-## Step 5: Open the HTML in Chrome
+## Step 6: Open the HTML in Chrome
 
 ```bash
 google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html &
@@ -125,9 +183,12 @@ google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html &
 The trailing `&` backgrounds the browser process so the agent doesn't
 wait.
 
-## Step 6: Update the features tracker
+## Step 7: Update the features tracker
 
-The canonical tracker is
+If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
+declined setup in Step 2 — skip this entire step.
+
+Otherwise, the canonical tracker is
 `~/.claude/feature-docs/<PROJECT>/features.html`. The repo's
 `features.md` (if any) is a script-generated snapshot when
 `.feature-workflow.toml` opts in.
@@ -154,9 +215,9 @@ The canonical tracker is
   Drop any `<tr class="empty">` placeholders for tbodies that
   now have real rows. Write the file to
   `~/.claude/feature-docs/<PROJECT>/features.html`.
-- **Otherwise, if neither exists**: skip this entire step. The
-  project doesn't use a tracker. (Don't offer to scaffold here — the
-  `/feature` router handles that.)
+- **Otherwise, if neither exists**: skip this entire step (Step 2's
+  setup offer was probably skipped or accepted-but-toml-only; this
+  project doesn't have a tracker).
 
 ### Add the row to Available
 
@@ -189,15 +250,15 @@ cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
 If `none` or absent, skip. The tracker state is local-only in that
 case.
 
-Remember the export-target path; you'll commit it in Step 7.
+Remember the export-target path; you'll commit it in Step 8.
 
-## Step 7: Commit and push
+## Step 8: Commit and push
 
 Commit whatever ended up in the repo this session:
 
-- The context export-target file from Step 4 (if anything was
+- The context export-target file from Step 5 (if anything was
   exported).
-- The features tracker export-target file from Step 6 (if anything
+- The features tracker export-target file from Step 7 (if anything
   was exported).
 
 Use the message `docs: capture <FEATURE> context` and push.
@@ -206,7 +267,7 @@ If nothing was exported in either step, skip — there's nothing to
 commit. The canonical HTML in the dev-store is local-only working
 memory.
 
-## Step 8: Done
+## Step 9: Done
 
 Tell the user the context is captured and that `/feature <FEATURE>`
 will pick it up when they're ready to work on it. Mention the chosen

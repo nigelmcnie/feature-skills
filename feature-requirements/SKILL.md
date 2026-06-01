@@ -70,6 +70,48 @@ The canonical tracker is
 `features.md` (if any) is a script-generated snapshot when
 `.feature-workflow.toml` opts in.
 
+### Workflow setup (first run)
+
+If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
+previously declined workflow setup — skip the rest of this step.
+The feature is claimed dev-store-only (no commit, no broadcast).
+
+If **none** of `~/.claude/feature-docs/<PROJECT>/features.html`,
+`features.md` at the repo root, or `.feature-workflow.toml` at the
+repo root exists, this project hasn't been set up yet. Offer once:
+
+> This project doesn't have the feature workflow set up yet. Want me
+> to scaffold it?
+>
+> 1. **features.html tracker** at
+>    `~/.claude/feature-docs/<PROJECT>/features.html` — canonical,
+>    local-only.
+> 2. **`.feature-workflow.toml`** at the repo root with all four
+>    `[export]` keys set to `"markdown"` — feature docs and the
+>    tracker get exported to `docs/features/<feature>/` and
+>    `features.md`, committed alongside code.
+>
+> Say no and I'll just write to the dev-store (private to your
+> machine, nothing in the repo). To change the choice later, delete
+> `~/.claude/feature-docs/<PROJECT>/.no-tracker`.
+
+- **Accept**: create `~/.claude/feature-docs/<PROJECT>/features.html`
+  from `~/.claude/skills/feature/features-template.html` (set
+  `<title>`, `<h1>`, subtitle; leave tables empty). Write
+  `.feature-workflow.toml` at the repo root with:
+
+  ```toml
+  [export]
+  context = "markdown"
+  requirements = "markdown"
+  plan = "markdown"
+  features = "markdown"
+  ```
+
+- **Decline**: `mkdir -p ~/.claude/feature-docs/$PROJECT &&
+  touch ~/.claude/feature-docs/$PROJECT/.no-tracker`, then skip the
+  rest of this step.
+
 ### Ensure features.html exists in the dev-store
 
 - **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
@@ -92,8 +134,10 @@ The canonical tracker is
   Drop any `<tr class="empty">` placeholders for tbodies that
   now have real rows. Write the file to
   `~/.claude/feature-docs/<PROJECT>/features.html`.
-- **Otherwise, if neither exists**: skip this entire step. The
-  project doesn't use a tracker.
+- **Otherwise, if `.feature-workflow.toml` exists but no tracker**:
+  scaffold a fresh `features.html` from
+  `~/.claude/skills/feature/features-template.html` (set `<title>`,
+  `<h1>`, subtitle; leave tables empty).
 
 ### Move the feature into In Progress
 
