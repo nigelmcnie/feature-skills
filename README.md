@@ -8,7 +8,8 @@ workflow: requirements → plan → implement → review → iterate.
 | Skill | What it does |
 |---|---|
 | `feature` | Workflow router; detects state and delegates to the right sub-skill |
-| `feature-context` | Capture an idea for later as a `context.md` |
+| `feature-context` | Capture an idea for later as a `context.html` |
+| `feature-choice` | Suggest which feature to work on next from the tracker |
 | `feature-requirements` | Draft and review requirements |
 | `feature-plan` | Draft and review an implementation plan |
 | `feature-implement` | Implement one phase per MR |
@@ -17,8 +18,9 @@ workflow: requirements → plan → implement → review → iterate.
 | `feature-iterate` | Address review feedback |
 
 Most skills set `disable-model-invocation: true` and are invoked via slash
-commands (`/feature-plan`, etc.). `feature-context` is the exception — it
-can be auto-invoked when the user asks for a feature idea to be captured.
+commands (`/feature-plan`, etc.). `feature-context` and `feature-choice`
+are the exceptions — they're auto-invokable when the user asks to
+capture an idea or pick what to work on next.
 
 ## Install
 
@@ -39,6 +41,7 @@ script is safe.
 ```
 /feature                       # router, jumps to the right step
 /feature-context <name>        # capture an idea for later
+/feature-choice                # ask what to work on next
 /feature-requirements <name>   # draft requirements
 /feature-plan <name>           # plan it
 /feature-implement <name>      # implement one phase (re-invoke per phase)

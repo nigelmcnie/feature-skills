@@ -12,7 +12,8 @@ BIN_DIR="$HOME/.local/bin"
 mkdir -p "$SKILLS_DIR" "$BIN_DIR"
 
 for skill in feature feature-requirements feature-plan feature-implement \
-             feature-context feature-review feature-iterate feature-qa; do
+             feature-context feature-choice feature-review feature-iterate \
+             feature-qa; do
     src="$REPO_DIR/$skill"
     dst="$SKILLS_DIR/$skill"
 
