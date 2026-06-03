@@ -138,6 +138,7 @@
     <li><a href="#migration">Migration path</a></li>
     <li><a href="#mvp">MVP feature breakdown</a></li>
     <li><a href="#post-mvp">Post-MVP / deferred</a></li>
+    <li><a href="#resolved">Resolved decisions</a></li>
     <li><a href="#open-questions">Open questions</a></li>
     <li><a href="#provenance">Provenance</a></li>
   </ol>
@@ -145,16 +146,9 @@
 
 <h2 id="why"><span class="num">1</span>Why a webapp</h2>
 
-<p>Three problems the static dev-store HTML doesn't solve well, in order of
-how much they hurt today:</p>
+<p>Three problems the static dev-store HTML doesn't solve well:</p>
 
 <ol>
-  <li><strong>Tab focus stealing.</strong> Every skill that writes a doc runs
-    <code>google-chrome &lt;path&gt; &amp;</code>. Chrome grabs focus, you lose
-    your place. This isn't a small annoyance — it derails whatever you were
-    doing every time the agent surfaces something. The webapp fixes this by
-    being one persistent tab that <em>receives</em> docs rather than
-    interrupting you with them.</li>
   <li><strong>"What do I need to look at?" has no answer.</strong> The
     dev-store grows. Docs accumulate. Some are awaiting your input (synthesis
     docs), others are informational (context, requirements re-renders), others
@@ -166,6 +160,12 @@ how much they hurt today:</p>
     workflow (kea, waddles, retail-backend, feature-skills itself), the
     fragmentation grows. A cross-project home view answers "what's active
     right now" across everything in one place.</li>
+  <li><strong>Tab focus stealing.</strong> Every skill that writes a doc runs
+    <code>google-chrome &lt;path&gt; &amp;</code>. Chrome grabs focus, you lose
+    your place. This isn't a small annoyance — it derails whatever you were
+    doing every time the agent surfaces something. The webapp fixes this by
+    being one persistent tab that <em>receives</em> docs rather than
+    interrupting you with them.</li>
 </ol>
 
 <p>The webapp was the original endpoint of the HTML migration — see the
@@ -677,15 +677,40 @@ picture.</p>
     "synthesis is ready for you". Opt-in per category; easy to overdo.</li>
 </ul>
 
-<h2 id="open-questions"><span class="num">8</span>Open questions</h2>
+<h2 id="resolved"><span class="num">8</span>Resolved decisions</h2>
 
 <ul>
-  <li><strong>Where does the webapp live as a git repo?</strong>
-    <code>~/src/nigelmcnie/feature-skills-webapp/</code> as a sibling to
-    <code>feature-skills/</code>, or
-    <code>~/src/nigelmcnie/feature-skills/webapp/</code> as a subdir?
-    Sibling is cleaner if it's standalone (it is); subdir is fewer moving
-    parts. Resolve before <code>webapp-skeleton</code>.</li>
+  <li><strong>Sibling repo, not subdir.</strong> The webapp lives at
+    <code>~/src/nigelmcnie/feature-skills-webapp/</code>, separate from
+    <code>feature-skills/</code>. The skills repo's <code>main</code> is
+    intentionally preserved at <code>v1</code>/<code>v2</code>/<code>v2.1</code>
+    for a future Claude Code skills marketplace listing; that listing
+    expects a lean repo where the top-level dirs are skills. Webapp code
+    inside the same repo would pollute the marketplace surface,
+    inflate clone size for users who only want the skills, and conflate
+    audiences (Claude Code users vs Python self-hosters). The webapp is
+    also functionally optional — skills work standalone — so coupling
+    them in a single repo would be a mismatch.</li>
+  <li><strong>Protocol / shared-utility ownership.</strong>
+    <code>feature-skills</code> owns <code>bin/feature-html-to-md</code>
+    and the protocol shapes (doc-type meta tags, JSON blob shapes,
+    dev-store layout). The webapp depends on these as a peer; if it needs
+    HTML → markdown conversion (e.g. exporting from the inbox), it shells
+    out to <code>feature-html-to-md</code> as a CLI on <code>PATH</code>
+    (already symlinked there by
+    <code>feature-skills/bin/install-symlinks</code>). The webapp's README
+    pins a minimum <code>feature-skills</code> version (initially
+    <code>v2.1</code>).</li>
+  <li><strong>Cross-repo references.</strong> The webapp's README opens
+    with "companion to feature-skills" and links back here. Protocol
+    documentation lives in <code>feature-skills/docs/</code> (this doc
+    plus future protocol docs); the webapp's docs link to those rather
+    than duplicating.</li>
+</ul>
+
+<h2 id="open-questions"><span class="num">9</span>Open questions</h2>
+
+<ul>
   <li><strong>Process supervision</strong>: systemd user unit is the
     suggestion. Alternative: <code>~/.config/autostart/</code> entry. systemd
     is more robust (restarts on crash); autostart is simpler.</li>
@@ -708,7 +733,7 @@ picture.</p>
     seems confused.</li>
 </ul>
 
-<h2 id="provenance"><span class="num">9</span>Provenance</h2>
+<h2 id="provenance"><span class="num">10</span>Provenance</h2>
 
 <ul>
   <li><strong>HTML migration</strong> — see commits up to <code>v2</code>
