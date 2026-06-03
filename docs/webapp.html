@@ -658,6 +658,15 @@ picture.</p>
   <li><strong>mcp-server</strong> — typed MCP tools that replace skill
     file-writes. The Stage-1-to-Stage-2 pivot point. Probably the first
     thing to add after MVP works.</li>
+  <li><strong>feature-docs-mcp-lookup</strong> — MCP tool that surfaces
+    feature docs for the current project by cwd. Solves discoverability
+    for dev-store-only projects (e.g. retail-backend, where
+    <code>[export]</code> is all <code>"none"</code>): Claude is doing
+    ad-hoc work in the repo, the webapp tells it "these features have
+    docs that might be relevant," Claude refers to them. Today the
+    cheap workaround is a one-line global CLAUDE.md pointer; the
+    MCP tool replaces that with project-aware lookup. Depends on
+    <code>mcp-server</code>.</li>
   <li><strong>search</strong> — SQLite FTS5 over doc bodies. "Find all
     features mentioning <code>dao-boundary</code>".</li>
   <li><strong>history-view</strong> — preserve previous doc versions on
