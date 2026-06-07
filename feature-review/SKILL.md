@@ -232,12 +232,7 @@ Update in the template:
 
 ### Open it
 
-```bash
-google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html &
-```
-
-The trailing `&` backgrounds the browser process so the agent doesn't
-wait.
+It's in the inbox at `http://127.0.0.1:8800`.
 
 ### Hand off
 

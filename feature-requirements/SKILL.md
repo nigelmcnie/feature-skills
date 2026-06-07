@@ -319,17 +319,12 @@ Remember the export-target path; you'll commit it at handoff (Step 8).
 
 ### Open it
 
-```bash
-google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html &
-```
-
-The trailing `&` backgrounds the browser process so the agent doesn't
-wait.
+It's in the inbox at `http://127.0.0.1:8800`.
 
 ## Step 5: Present and review in parallel
 
 Tell the user the draft is ready for their review and that the HTML is
-open in Chrome. Spawn a reviewer subagent using the Agent tool with
+in the inbox at `http://127.0.0.1:8800`. Spawn a reviewer subagent using the Agent tool with
 `run_in_background: true` so it runs while the human reads.
 
 Prompt for the reviewer:
@@ -426,9 +421,7 @@ Update in the template:
 
 ### Open it
 
-```bash
-google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html &
-```
+It's in the inbox at `http://127.0.0.1:8800`.
 
 ### Hand off
 
@@ -536,7 +529,7 @@ mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
 
 The synthesis doc is transient; the integrated state lives in
 `requirements.html` and the design-notes section. Tell the user the
-rewrite is ready and that they can refresh the Chrome tab to see it.
+rewrite is ready and that they can refresh the inbox tab to see it.
 
 Summarise the changes to the user.
 
