@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>feature-skills — webapp design</title>
+<style>
+  :root {
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-muted: #1f1d1c;
+    --border: #44403c;
+    --border-strong: #57534e;
+    --accent: #f59e0b;
+    --accent-soft: #92400e;
+    --text: #fafaf9;
+    --text-muted: #d6d3d1;
+    --text-faint: #a8a29e;
+    --code-bg: #14110f;
+    --link: #93c5fd;
+    --good: #4ade80;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 22px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 36px 32px 120px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); padding: 0.08em 0.4em; border-radius: 4px; font-size: 0.88em; color: #fcd9a8; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.85em; line-height: 1.5; margin: 14px 0; }
+  pre code { background: none; padding: 0; color: var(--text-muted); }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.doc {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 22px;
+    margin-bottom: 12px;
+  }
+  header.doc .eyebrow { color: var(--accent); font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin: 0 0 8px; }
+  header.doc h1 { margin: 0 0 8px; font-size: 2.2rem; line-height: 1.15; }
+  header.doc .subtitle { margin: 0; color: var(--text-muted); font-size: 1.05rem; }
+  header.doc .meta { margin: 14px 0 0; color: var(--text-faint); font-size: 0.85rem; }
+
+  h2 { font-size: 1.5rem; margin: 48px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 12px; }
+  h3 { font-size: 1.15rem; margin: 28px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-left: 24px; }
+  li { margin-bottom: 6px; }
+  strong { color: #fff; }
+
+  .callout {
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 18px 24px;
+    margin: 22px 0;
+  }
+  .callout.note { border-left-color: var(--link); }
+  .callout.good { border-left-color: var(--good); }
+  .callout h3 { margin-top: 0; }
+
+  .toc { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin: 24px 0 8px; }
+  .toc h3 { margin: 0 0 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+  .toc ol { columns: 2; column-gap: 36px; margin: 0; padding-left: 20px; }
+  .toc a { color: var(--text-muted); }
+
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 22px; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 9px 13px; border: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-muted); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.78rem; }
+  td.center { text-align: center; }
+
+  /* Feature cards */
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin: 20px 0;
+  }
+  .feature > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+  .feature > header h3 { margin: 0; font-size: 1.18rem; }
+  .feature > header h3 code { background: var(--bg); color: var(--accent); font-size: 0.92em; padding: 2px 9px; }
+  .feature .pill { display: inline-block; padding: 1px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; border: 1px solid; }
+  .feature .pill.small { color: var(--good); border-color: var(--good); background: rgba(74,222,128,0.10); }
+  .feature .pill.medium { color: var(--warn); border-color: var(--warn); background: rgba(251,191,36,0.10); }
+  .feature .pill.deps { color: var(--text-faint); border-color: var(--text-faint); background: transparent; }
+  .feature .summary { color: var(--text-muted); font-style: italic; margin: 0 0 12px; }
+  .feature h4 { margin: 14px 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+  .feature h4:first-of-type { margin-top: 6px; }
+
+  .small { font-size: 0.85rem; color: var(--text-faint); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="doc">
+  <p class="eyebrow">Design doc</p>
+  <h1>feature-skills webapp</h1>
+  <p class="subtitle">A self-hosted, single-tab home for feature docs. Replaces tab-grabbing with an inbox.</p>
+  <p class="meta">Status: design · Target stack: Python + Starlette + Jinja2 + SQLite · Authored 2026-06-03 (Claude Opus 4.7 from a conversation with Nigel)</p>
+</header>
+
+<div class="callout">
+  <h3>TL;DR</h3>
+  <p>The HTML migration left every feature doc as a static file in
+  <code>~/.claude/feature-docs/&lt;project&gt;/&lt;feature&gt;/</code>. Skills open
+  each doc in a new Chrome tab, which steals focus from whatever you're reading.
+  The webapp replaces that with a single always-open tab that pushes new docs
+  into an <strong>inbox</strong> rather than into your face — and adds a
+  cross-project home, persistent click-to-comment, real read-state tracking, and
+  eventually search and history.</p>
+  <p style="margin-bottom:0">Build in two stages. <strong>Parallel mode</strong>
+  first: the webapp reads dev-store files as-is; skills barely change. Then
+  <strong>cutover</strong>: SQLite becomes canonical, skills talk to the webapp
+  via MCP, click-to-comment + synthesis forms POST instead of round-tripping
+  through the clipboard.</p>
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#why">Why a webapp</a></li>
+    <li><a href="#principles">Design principles</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#data-model">Data model</a></li>
+    <li><a href="#migration">Migration path</a></li>
+    <li><a href="#mvp">MVP feature breakdown</a></li>
+    <li><a href="#post-mvp">Post-MVP / deferred</a></li>
+    <li><a href="#resolved">Resolved decisions</a></li>
+    <li><a href="#open-questions">Open questions</a></li>
+    <li><a href="#provenance">Provenance</a></li>
+  </ol>
+</div>
+
+<h2 id="why"><span class="num">1</span>Why a webapp</h2>
+
+<p>Three problems the static dev-store HTML doesn't solve well:</p>
+
+<ol>
+  <li><strong>"What do I need to look at?" has no answer.</strong> The
+    dev-store grows. Docs accumulate. Some are awaiting your input (synthesis
+    docs), others are informational (context, requirements re-renders), others
+    are stale. Today the only way to find out is to open Chrome history or
+    grep the dev-store. An <strong>inbox</strong> with "needs response" vs
+    "new since last visit" is the natural fix.</li>
+  <li><strong>Cross-project tracking doesn't exist.</strong> One tracker per
+    project, one set of contexts per project. As more projects adopt the
+    workflow (kea, waddles, retail-backend, feature-skills itself), the
+    fragmentation grows. A cross-project home view answers "what's active
+    right now" across everything in one place.</li>
+  <li><strong>Tab focus stealing.</strong> Every skill that writes a doc runs
+    <code>google-chrome &lt;path&gt; &amp;</code>. Chrome grabs focus, you lose
+    your place. This isn't a small annoyance — it derails whatever you were
+    doing every time the agent surfaces something. The webapp fixes this by
+    being one persistent tab that <em>receives</em> docs rather than
+    interrupting you with them.</li>
+</ol>
+
+<p>The webapp was the original endpoint of the HTML migration — see the
+"Webapp deferral" section in the migration's planning doc. The migration
+deliberately structured the dev-store HTML so a webapp could be a thin lens
+over it without another data-shape change.</p>
+
+<h2 id="principles"><span class="num">2</span>Design principles</h2>
+
+<ul>
+  <li><strong>Single tab.</strong> Nigel keeps one webapp tab open in Chrome.
+    All docs render in-place. New docs arrive as inbox cards, not new tabs.
+    Skills stop opening Chrome.</li>
+  <li><strong>Local-only by default.</strong> Runs on
+    <code>localhost:&lt;port&gt;</code>. Data is sensitive (work-in-progress
+    repo docs). No cloud, no auth needed beyond loopback.</li>
+  <li><strong>Graceful degradation.</strong> If the webapp is down, the
+    dev-store HTML still works directly in Chrome. Skills detect "webapp
+    unreachable" and fall back to opening the file as today. The webapp is a
+    UX improvement, not a hard dependency.</li>
+  <li><strong>Inbox over tracker.</strong> The home view is an inbox of what
+    needs attention, not a comprehensive tracker. The tracker is a sub-view.
+    Default the user lands on action items.</li>
+  <li><strong>HTML rendering, server-side.</strong> Jinja2 + Starlette,
+    server-rendered, HTMX for interactivity. No SPA framework. No build
+    step. Familiar territory.</li>
+  <li><strong>SQLite is canonical (eventually).</strong> Stage 1 the dev-store
+    files stay canonical and SQLite is an index. Stage 2 SQLite holds the
+    docs themselves and the dev-store files become an export target (or
+    disappear).</li>
+  <li><strong>Skills talk via MCP.</strong> The bridge between feature-skills
+    and the webapp is an MCP server. Skills call typed tools
+    (<code>tracker_move_to_in_progress</code>,
+    <code>feature_save_context</code>, etc.) rather than editing files. This
+    happens at Stage 2; Stage 1 skills still write files.</li>
+  <li><strong>Read state is a first-class concept.</strong> Every doc has a
+    "last read at" timestamp. Every action-required doc (synthesis,
+    click-to-comment-pending) has an explicit completion state. The inbox
+    UI is derived from these.</li>
+</ul>
+
+<h2 id="architecture"><span class="num">3</span>Architecture</h2>
+
+<table>
+  <thead>
+    <tr><th>Component</th><th>Tech</th><th>Job</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Webapp</strong></td>
+      <td>Python 3.14, Starlette, Jinja2, HTMX</td>
+      <td>Renders HTML; serves API endpoints for inbox / read-state / comments / synthesis responses; pushes SSE events.</td>
+    </tr>
+    <tr>
+      <td><strong>Storage</strong></td>
+      <td>SQLite (stdlib)</td>
+      <td>Stage 1: index over dev-store files; tracks read-state, comments, synthesis responses. Stage 2: holds doc content directly.</td>
+    </tr>
+    <tr>
+      <td><strong>Realtime</strong></td>
+      <td>Server-sent events (SSE)</td>
+      <td>One persistent EventSource per tab. Webapp pushes "doc X changed" to clients. Inbox auto-refreshes.</td>
+    </tr>
+    <tr>
+      <td><strong>Skill bridge</strong></td>
+      <td>MCP server (Stage 2)</td>
+      <td>Typed tools the skills call instead of writing files. Stage 1: skills still write files; webapp picks them up via filesystem walker.</td>
+    </tr>
+    <tr>
+      <td><strong>Runtime</strong></td>
+      <td>systemd user unit</td>
+      <td>Webapp starts on login; restarts on failure. <code>systemctl --user status feature-skills-webapp</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="data-model"><span class="num">4</span>Data model</h2>
+
+<p>Sketch (Stage 1 — index over files; Stage 2 adds doc content):</p>
+
+<pre><code>projects(id, name, repo_path, created_at)
+features(id, project_id, slug, status, owner, notes, created_at, updated_at)
+documents(
+  id, feature_id, type,                  -- 'context', 'requirements', 'plan',
+                                         -- 'requirements-feedback-1', etc.
+  source_path,                           -- dev-store file path (Stage 1)
+  content_html,                          -- Stage 2 only
+  metadata_json,                         -- checklist state, section IDs, etc.
+  source_mtime, created_at, updated_at
+)
+read_state(document_id, last_read_at)
+synthesis_responses(
+  document_id, item_num, response, routine_flag, updated_at
+)
+comments(
+  id, document_id, excerpt, text,
+  status,                                -- 'pending', 'integrated', 'dismissed'
+  created_at, integrated_at
+)
+events(
+  id, document_id, event_type,
+  payload_json, created_at
+)</code></pre>
+
+<p>The <code>events</code> table is the audit log — drives the inbox ("docs
+with events newer than <code>last_read_at</code>, grouped by type") and gives
+you the activity feed for "what did the agent do overnight."</p>
+
+<h2 id="migration"><span class="num">5</span>Migration path</h2>
+
+<p><strong>Stage 1 — Parallel mode.</strong> The webapp is a lens over the
+dev-store. A filesystem walker discovers files, indexes into SQLite, serves
+them via Jinja templates. Skills don't change their write path. Two things
+are new from the user's POV:</p>
+<ul>
+  <li>The webapp tab shows an inbox + cross-project view.</li>
+  <li>Click-to-comment + synthesis forms POST to the webapp instead of
+    building a clipboard blob. Comments persist in SQLite across re-renders.</li>
+</ul>
+<p>Skills get one change: drop the <code>google-chrome</code> calls (or make
+them conditional on "webapp not running"). The user already has the tab open.</p>
+
+<p><strong>Stage 2 — Cutover.</strong> The MCP server lands. Skills call
+typed tools instead of writing files. SQLite holds the canonical doc content;
+the dev-store becomes an export target (so that the parallel-mode fallback
+still works if the webapp dies). The migration is per-skill, not a big bang:
+<code>feature-context</code> moves first (simplest write surface), then the
+synthesis-producing skills, then the rest.</p>
+
+<p>Skills that read docs (<code>feature-implement</code>,
+<code>feature-review</code>, <code>feature-iterate</code>) gain a read-via-MCP
+path; the dev-store file path becomes the fallback.</p>
+
+<h2 id="mvp"><span class="num">6</span>MVP feature breakdown</h2>
+
+<p>Each feature below is sized to be a candidate for the feature-skills
+workflow — capture as a <code>context.html</code>, then
+<code>feature-requirements</code> → <code>feature-plan</code> →
+<code>feature-implement</code> as usual. Dependencies between features are
+called out; pick by topology.</p>
+
+<p class="small">Pill key: <span class="pill small">small</span> ≈ a few
+hours; <span class="pill medium">medium</span> ≈ a session or two;
+<span class="pill deps">deps</span> = upstream features.</p>
+
+<div class="feature">
+  <header>
+    <h3><code>webapp-skeleton</code></h3>
+    <span class="pill small">small</span>
+  </header>
+  <p class="summary">The "hello world" that proves the stack — a Starlette
+  app on localhost serving a single static page, a SQLite DB with an empty
+  schema, and a systemd user unit so it starts on login.</p>
+
+  <h4>Motivation</h4>
+  <p>Everything else depends on having the process running and a place to
+  put data. Get the bones in first.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>Project layout: <code>app/</code> (Starlette routes + Jinja
+      templates), <code>db/</code> (schema + migrations), <code>bin/</code>
+      (entry point).</li>
+    <li>One route, <code>/</code>, that renders a "feature-skills webapp"
+      placeholder.</li>
+    <li>SQLite database with empty tables (per the data model in §4).
+      Numbered SQL migrations.</li>
+    <li><code>systemd</code> user unit at
+      <code>~/.config/systemd/user/feature-skills-webapp.service</code>.</li>
+    <li>Health check route <code>/healthz</code>.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Use the same Starlette + Jinja2 + numbered-SQL-migration pattern
+      kea uses. Nigel is fluent in it.</li>
+    <li>Listen on <code>127.0.0.1</code> only — no auth, no remote access.</li>
+    <li>Pick a port — suggestion: <code>8800</code>. Configurable.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>doc-discovery</code></h3>
+    <span class="pill medium">medium</span>
+    <span class="pill deps">deps: webapp-skeleton</span>
+  </header>
+  <p class="summary">Walk
+  <code>~/.claude/feature-docs/&lt;project&gt;/</code>, identify docs by their
+  <code>&lt;meta name="feature-doc-type"&gt;</code> tag, and index into
+  SQLite. Re-walk on demand and via filesystem watch.</p>
+
+  <h4>Motivation</h4>
+  <p>The webapp needs a model of what docs exist. Walking the filesystem on
+  every request is slow; an index makes the inbox and project views cheap.
+  Stage 1 keeps the files canonical and re-discovers from disk; Stage 2
+  retires the walker.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>Walker module that recurses
+      <code>~/.claude/feature-docs/</code>, extracts project +
+      feature slug from the path, reads
+      <code>&lt;meta name="feature-doc-type"&gt;</code> from each
+      <code>.html</code> file, and upserts to <code>documents</code>.</li>
+    <li>Tracks <code>source_mtime</code> per doc; only re-parses on change.</li>
+    <li>Triggered on startup, periodically (every N minutes), and on demand
+      via an admin endpoint.</li>
+    <li>Filesystem watch via <code>inotify</code> /
+      <code>watchfiles</code> for sub-second freshness (Linux-only is fine).</li>
+    <li>Emits an <code>events</code> row per discovered change for the
+      activity feed and SSE push.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Synthesis docs in <code>.feedback-archive/</code> get indexed
+      with status <code>archived</code> — visible in history, not in the
+      live inbox.</li>
+    <li><code>features.html</code> at the project root is its own
+      doc-type — track separately from per-feature docs.</li>
+  </ul>
+
+  <h4>Open questions</h4>
+  <ul>
+    <li>What's the right inotify-vs-poll tradeoff if the user has the dev-
+      store on a network mount? (Probably they don't; punt.)</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>read-state</code></h3>
+    <span class="pill small">small</span>
+    <span class="pill deps">deps: doc-discovery</span>
+  </header>
+  <p class="summary">Track <code>last_read_at</code> per document. Stamp it
+  on every page view. Drives "new since last visit."</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>On every doc-view request, upsert
+      <code>read_state(document_id, last_read_at=now())</code>.</li>
+    <li>Helper: "is this document unread?" = max event timestamp &gt;
+      last_read_at.</li>
+    <li>One bulk "mark all read for this project" admin action.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Single user — no need for a user table. Hardcode the read-state to
+      a single row keyed by document.</li>
+    <li>Stamp on page render, not page close. Closer-to-correct is the
+      enemy of perfect-and-complex.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>inbox-view</code></h3>
+    <span class="pill medium">medium</span>
+    <span class="pill deps">deps: doc-discovery, read-state</span>
+  </header>
+  <p class="summary">The Home page. Cards grouped by category: "Awaiting
+  your input", "New since last visit", "In progress", "Recently shipped".
+  Cross-project by default.</p>
+
+  <h4>Motivation</h4>
+  <p>The headline UX. Without this, the webapp is just a static-file
+  server with extra steps.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>Route <code>/</code> renders the inbox.</li>
+    <li>Categories computed from SQLite:
+      <ul>
+        <li><strong>Awaiting your input</strong>: synthesis docs with at
+          least one item that has neither a synthesis_responses row nor a
+          routine_flag.</li>
+        <li><strong>New since last visit</strong>: documents with events
+          newer than <code>read_state.last_read_at</code>.</li>
+        <li><strong>In progress</strong>: features with
+          <code>status='in_progress'</code>, regardless of whether their
+          docs have new events.</li>
+        <li><strong>Recently shipped</strong>: last N features moved to
+          <code>status='done'</code> (e.g. last 5, last 30 days).</li>
+      </ul>
+    </li>
+    <li>Each card: project + feature + doc type + last activity timestamp +
+      a primary action ("Open", "Respond"). Clicking a card opens the doc
+      in-place (same tab).</li>
+    <li>Top of page: per-project filter chips, "show all" default.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>An "In progress" feature can simultaneously be in "Awaiting your
+      input" — that's OK; show it in both with cross-references.</li>
+    <li>Done-section dedup: don't show a feature in "Recently shipped" if
+      its ship event was &gt;30 days ago.</li>
+    <li>Empty state: "Nothing's waiting for you" with a link to project
+      views.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>doc-view</code></h3>
+    <span class="pill medium">medium</span>
+    <span class="pill deps">deps: doc-discovery, read-state</span>
+  </header>
+  <p class="summary">Render an individual doc in the webapp. Reuses the
+  existing template HTML; the webapp wraps it with chrome (project / feature
+  / breadcrumbs) and stamps <code>last_read_at</code>.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>Route <code>/&lt;project&gt;/&lt;feature&gt;/&lt;doc-type&gt;</code>.</li>
+    <li>Read the source file's HTML body (the &lt;main&gt; section + any
+      TOC) and render it inside a webapp shell with breadcrumbs.</li>
+    <li>Stamp <code>read_state.last_read_at</code> on render.</li>
+    <li>Sibling-doc nav (prev/next across context → requirements → plan →
+      review).</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Stage 1: pass through the existing CSS embedded in the source
+      files. Don't try to restyle.</li>
+    <li>Stage 2: pull just the body, render via the webapp's own templates
+      so we control the chrome.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>synthesis-response-capture</code></h3>
+    <span class="pill medium">medium</span>
+    <span class="pill deps">deps: doc-view</span>
+  </header>
+  <p class="summary">Replace the synthesis doc's "Copy responses → paste
+  JSON in chat" round-trip with a form that POSTs straight to the webapp.
+  Responses persist in SQLite; the agent reads them on its next turn.</p>
+
+  <h4>Motivation</h4>
+  <p>Today, Nigel fills in textareas, clicks "Copy responses", switches to
+  the Claude tab, pastes JSON, the agent parses. Friction every cycle. With
+  the webapp, the form posts back, the agent calls
+  <code>synthesis_get_pending</code> and finds them.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>The synthesis HTML (feedback-template-derived) gets a small JS
+      change: instead of building clipboard JSON, POST to
+      <code>/api/synthesis/&lt;document_id&gt;/responses</code>.</li>
+    <li>The webapp stores each response in
+      <code>synthesis_responses</code>, keyed by item number.</li>
+    <li>Routine flags (the "discuss this routine item" mechanism) save the
+      same way.</li>
+    <li>Skills (Stage 2) read pending responses via MCP. Stage 1 fallback:
+      a CLI command <code>feature-pending-responses &lt;feature&gt;</code>
+      dumps the JSON the agent would expect.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Keep the clipboard "Copy responses" button working as a fallback for
+      when the webapp is down.</li>
+    <li>Save responses on blur (debounced), not just submit — don't lose
+      work if the tab crashes mid-fill.</li>
+  </ul>
+
+  <h4>Open questions</h4>
+  <ul>
+    <li>How does the agent know responses are ready? Two answers: it asks
+      ("when you've filled in the synthesis, tell me"), or the next
+      tool-call sees them. Probably the former for now.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>comment-capture</code></h3>
+    <span class="pill medium">medium</span>
+    <span class="pill deps">deps: doc-view</span>
+  </header>
+  <p class="summary">Click-to-comment annotations on narrative docs (context
+  / requirements / plan) save to the webapp instead of clipboard JSON. Each
+  comment persists across re-renders.</p>
+
+  <h4>Motivation</h4>
+  <p>Today, click-to-comment annotations live in browser memory and die
+  when you Copy-paste them. If the doc gets re-rendered before you copy,
+  comments are lost. The webapp solves both: persistence in SQLite, plus
+  the round-trip is just a tool call, not clipboard surgery.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>The click-to-comment widget in the templates POSTs each comment to
+      <code>/api/comments/&lt;document_id&gt;</code> on save.</li>
+    <li>Comments persist in the <code>comments</code> table keyed by
+      document.</li>
+    <li>The doc renderer pulls existing comments at view time and
+      re-displays them in the rail.</li>
+    <li>When a comment is integrated by the agent (later), it's marked
+      <code>status='integrated'</code> — keeps the audit trail but visually
+      dims.</li>
+    <li>Skills read pending comments via MCP (Stage 2). Stage 1: CLI fallback
+      <code>feature-pending-comments &lt;feature&gt;</code>.</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Excerpts may not match the current doc body after a re-render (the
+      anchored text changed). Store the comment anyway; render with a
+      "anchor-lost" indicator. Don't drop user content.</li>
+    <li>Keep the "Copy comments" button working as a fallback.</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>sse-refresh</code></h3>
+    <span class="pill small">small</span>
+    <span class="pill deps">deps: inbox-view, doc-discovery</span>
+  </header>
+  <p class="summary">Server-sent events stream from the webapp to the open
+  tab. When a new doc lands or an existing one changes, the inbox card list
+  refreshes without a manual reload.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>SSE endpoint <code>/events</code>. One persistent connection per
+      open tab.</li>
+    <li>Webapp pushes an event for every <code>events</code> row insertion
+      (filtered by event type — discovery, comment, response, ship).</li>
+    <li>Inbox-page JS listens via <code>EventSource</code>, refreshes the
+      affected card or re-renders the inbox section.</li>
+    <li>HTMX swap on the inbox card list when events arrive (simpler than
+      hand-rolled).</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Drop the connection cleanly on tab close. Reconnect on tab focus.</li>
+    <li>Throttle high-frequency events (a flurry of discovery events
+      shouldn't repaint 50 times in a second).</li>
+  </ul>
+</div>
+
+<div class="feature">
+  <header>
+    <h3><code>skill-integration-parallel</code></h3>
+    <span class="pill small">small</span>
+  </header>
+  <p class="summary">Update feature-skills SKILL.md files: stop opening
+  Chrome unconditionally; instead, tell the user in chat where the doc is
+  and that the webapp will pick it up. <strong>Lives in the
+  <code>feature-skills</code> repo</strong>, not the webapp.</p>
+
+  <h4>Scope</h4>
+  <ul>
+    <li>Every SKILL.md that currently runs <code>google-chrome ... &amp;</code>
+      drops the call. There are ~5 places (context, requirements, plan,
+      review synthesis, review feedback).</li>
+    <li>Replace with a chat message: "Wrote
+      <code>~/.claude/feature-docs/&lt;project&gt;/&lt;feature&gt;/&lt;doc&gt;.html</code>.
+      Your webapp tab will show it in the inbox."</li>
+    <li>Optional: detect webapp reachability via
+      <code>curl -fsS localhost:8800/healthz</code> and fall back to opening
+      Chrome if it's down (graceful degradation per design principles).</li>
+  </ul>
+
+  <h4>Design notes</h4>
+  <ul>
+    <li>Independent of the webapp itself — can ship the day the webapp's
+      inbox view works, even if everything else lags.</li>
+    <li>The fallback-to-Chrome detection is nice but not blocking; v1 can
+      just drop the chrome calls and document the requirement that the
+      webapp is running.</li>
+  </ul>
+</div>
+
+<h2 id="post-mvp"><span class="num">7</span>Post-MVP / deferred</h2>
+
+<p>Not for the first cut. Listed so the agent picking up MVP has the wider
+picture.</p>
+
+<ul>
+  <li><strong>mcp-server</strong> — typed MCP tools that replace skill
+    file-writes. The Stage-1-to-Stage-2 pivot point. Probably the first
+    thing to add after MVP works.</li>
+  <li><strong>feature-docs-mcp-lookup</strong> — MCP tool that surfaces
+    feature docs for the current project by cwd. Solves discoverability
+    for dev-store-only projects (e.g. retail-backend, where
+    <code>[export]</code> is all <code>"none"</code>): Claude is doing
+    ad-hoc work in the repo, the webapp tells it "these features have
+    docs that might be relevant," Claude refers to them. Today the
+    cheap workaround is a one-line global CLAUDE.md pointer; the
+    MCP tool replaces that with project-aware lookup. Depends on
+    <code>mcp-server</code>.</li>
+  <li><strong>search</strong> — SQLite FTS5 over doc bodies. "Find all
+    features mentioning <code>dao-boundary</code>".</li>
+  <li><strong>history-view</strong> — preserve previous doc versions on
+    re-render. Diff between rounds.</li>
+  <li><strong>cross-project-tracker</strong> — single view of all
+    in-progress features across all projects.</li>
+  <li><strong>dependency-graph</strong> — features declare dependencies on
+    others; surface blockers in the inbox.</li>
+  <li><strong>activity-feed</strong> — chronological audit log of skill
+    writes and your responses. Helpful for picking up after a break.</li>
+  <li><strong>multi-machine-sync</strong> — depends on infrastructure
+    choice (chezmoi-managed SQLite? a small VPS? syncthing?). Deferred.</li>
+  <li><strong>features-tracker-edit-UI</strong> — edit tracker rows from
+    the webapp without going through a skill. Maybe; might cleanly stay
+    skill-only.</li>
+  <li><strong>notifications</strong> — browser Notification API for
+    "synthesis is ready for you". Opt-in per category; easy to overdo.</li>
+</ul>
+
+<h2 id="resolved"><span class="num">8</span>Resolved decisions</h2>
+
+<ul>
+  <li><strong>Sibling repo, not subdir.</strong> The webapp lives at
+    <code>~/src/nigelmcnie/feature-skills-webapp/</code>, separate from
+    <code>feature-skills/</code>. The skills repo's <code>main</code> is
+    intentionally preserved at <code>v1</code>/<code>v2</code>/<code>v2.1</code>
+    for a future Claude Code skills marketplace listing; that listing
+    expects a lean repo where the top-level dirs are skills. Webapp code
+    inside the same repo would pollute the marketplace surface,
+    inflate clone size for users who only want the skills, and conflate
+    audiences (Claude Code users vs Python self-hosters). The webapp is
+    also functionally optional — skills work standalone — so coupling
+    them in a single repo would be a mismatch.</li>
+  <li><strong>Protocol / shared-utility ownership.</strong>
+    <code>feature-skills</code> owns <code>bin/feature-html-to-md</code>
+    and the protocol shapes (doc-type meta tags, JSON blob shapes,
+    dev-store layout). The webapp depends on these as a peer; if it needs
+    HTML → markdown conversion (e.g. exporting from the inbox), it shells
+    out to <code>feature-html-to-md</code> as a CLI on <code>PATH</code>
+    (already symlinked there by
+    <code>feature-skills/bin/install-symlinks</code>). The webapp's README
+    pins a minimum <code>feature-skills</code> version (initially
+    <code>v2.1</code>).</li>
+  <li><strong>Cross-repo references.</strong> The webapp's README opens
+    with "companion to feature-skills" and links back here. Protocol
+    documentation lives in <code>feature-skills/docs/</code> (this doc
+    plus future protocol docs); the webapp's docs link to those rather
+    than duplicating.</li>
+</ul>
+
+<h2 id="open-questions"><span class="num">9</span>Open questions</h2>
+
+<ul>
+  <li><strong>Process supervision</strong>: systemd user unit is the
+    suggestion. Alternative: <code>~/.config/autostart/</code> entry. systemd
+    is more robust (restarts on crash); autostart is simpler.</li>
+  <li><strong>How does the agent know synthesis responses are pending?</strong>
+    Probably: the user tells the agent ("I've filled it in"). Stage 2 MCP
+    could have a <code>has_pending_responses</code> tool but
+    is-the-user-done is fundamentally a conversation signal.</li>
+  <li><strong>SQLite location.</strong>
+    <code>~/.claude/feature-docs/_webapp.db</code> (next to the data) or
+    <code>~/.local/share/feature-skills-webapp/db.sqlite</code> (XDG)? The
+    former keeps everything together for chezmoi-management; the latter
+    follows XDG conventions.</li>
+  <li><strong>Authentication.</strong> Localhost-only is enough for v1. If
+    you ever expose the webapp on the network (e.g. work laptop reading
+    from home desktop), revisit.</li>
+  <li><strong>Chrome tab survival.</strong> What happens if the tab gets
+    closed accidentally — does the agent re-open it on the next skill run,
+    or is the user expected to keep it open? Probably the latter; could
+    add a "click here to open the webapp" message in skills if the user
+    seems confused.</li>
+</ul>
+
+<h2 id="provenance"><span class="num">10</span>Provenance</h2>
+
+<ul>
+  <li><strong>HTML migration</strong> — see commits up to <code>v2</code>
+    on <code>main</code> of this repo. The migration plan lived in
+    <code>~/.claude/feature-docs/context.md</code> during the build.</li>
+  <li><strong>Webapp deferral note</strong> — quoted in the migration plan;
+    flagged as "the eventual destination" with cross-machine sync,
+    cross-project tracking, and richer interactions as motivations.</li>
+  <li><strong>This doc</strong> — drafted 2026-06-03 from a brainstorm in
+    a Claude Code session. Nigel accepted the parallel-mode-first migration
+    path and the MVP scope.</li>
+  <li><strong>Specific pain that triggered the build</strong> — Chrome tab
+    focus stealing every time a skill writes a doc.</li>
+</ul>
+
+<p class="small" style="margin-top:60px; border-top:1px solid var(--border); padding-top:16px;">
+This doc is the starting brief for the webapp project. A future feature-skills
+session in the webapp repo should run <code>/feature-context &lt;name&gt;</code>
+per MVP feature above to bootstrap each as a captured context.html, then
+proceed through the requirements → plan → implement loop as usual.
+</p>
+
+</div>
+</body>
+</html>
