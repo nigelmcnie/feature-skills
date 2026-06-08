@@ -60,9 +60,28 @@ if both exist for the same N).
 
 ### HTML synthesis doc (canonical)
 
-The HTML synthesis doc is a form: the user fills in "Your thoughts"
-fields and clicks **Copy responses** to emit a JSON blob in this
-shape:
+The synthesis response was submitted via the webapp. Read it from the HTTP
+endpoint — the absolute path of the highest-numbered
+`review-feedback-<N>.html` in the dev-store is the key:
+
+```bash
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
+```
+
+- `200 submitted=true` → parse `responses` and `routine_flags` from the
+  JSON body.
+- `200 submitted=false` → the human hasn't submitted yet. Poll every 5 s;
+  emit a "still waiting in the inbox…" line roughly every 60 s.
+- `404` → the doc isn't indexed yet — trigger a walk first:
+  ```bash
+  curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
+  ```
+  then retry the poll.
+
+**Fallback**: if the server is unreachable or the user gives up, ask them
+to click **Copy responses** in the synthesis doc and paste the JSON blob.
+See `docs/webapp-polling.md` in the feature-skills repo for the full
+convention. The clipboard shape is:
 
 ```json
 {
@@ -72,9 +91,7 @@ shape:
 }
 ```
 
-If the user pasted the blob already (it should be visible above in
-the conversation), parse it. If not, ask them to click **Copy
-responses** in the open HTML and paste the JSON.
+Interpretation (same whether from HTTP or clipboard):
 
 - Empty string in `responses` = agree with your take on that item.
 - Non-empty string = user direction; use it.
@@ -85,22 +102,10 @@ The user may also have left click-to-comment annotations on
 `requirements.html` or `plan.html` and pasted a `{"doc": ".../<file>",
 "comments": [...]}` blob. Fold those in as additional feedback.
 
-### Sanity-check the `doc` field
-
-Before integrating either blob, verify its `doc` field matches what
-you expect:
-
-- Synthesis blob: expected
-  `docs/features/<FEATURE>/review-feedback-<N>` for the highest N
-  in the dev-store.
-- Click-to-comment blob: expected `docs/features/<FEATURE>/requirements`
-  or `docs/features/<FEATURE>/plan` (depending on which doc the user
-  was commenting on).
-
-If the value doesn't match (wrong feature, stale tab, wrong round),
-warn the user inline ("the pasted blob's `doc` field is `X`, but I
-expected `Y` — looks like the wrong tab. Confirm before I integrate?")
-and don't proceed until they acknowledge.
+**Sanity-check (clipboard fallback only)**: verify the `doc` field of any
+pasted blob matches `docs/features/<FEATURE>/review-feedback-<N>` for
+the highest N in the dev-store. If not, warn and confirm before
+proceeding.
 
 ### Markdown synthesis doc (legacy)
 
