@@ -247,7 +247,7 @@ Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
 `~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`):
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
 ```
 
 - `curl` error → server unreachable; fall back to clipboard (see below).
@@ -258,8 +258,8 @@ curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/
   JSON. Then fetch active comments from the spine docs:
 
   ```bash
-  curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
-  curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+  curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+  curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
   ```
 
   For each doc with a non-empty `comments` array, fold the comments in as
@@ -268,7 +268,7 @@ curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/
   ```bash
   curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
     -H 'Content-Type: application/json' \
-    -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
+    -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
   # repeat for plan.html if it also had comments
   ```
 

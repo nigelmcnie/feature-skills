@@ -10,9 +10,12 @@ HTTP API to receive responses rather than waiting for a clipboard paste.
    curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
    ```
 
-2. **Poll every 5 s**:
+2. **Poll every 5 s** — the path **must be fully absolute and tilde-expanded**.
+   The walker stores `source_path` expanded, so a literal `~` never matches and
+   404s forever. Use `$HOME`, which expands inside the quoted URL (a bare `~`
+   does not):
    ```bash
-   curl -fsS "http://127.0.0.1:8800/synthesis-response?path=<ABS_PATH>"
+   curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/<doc>.html"
    ```
    | Result | Action |
    |--------|--------|

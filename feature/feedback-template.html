@@ -304,16 +304,16 @@
   }
 
   footer.actions button.copy-btn {
-    background: var(--accent);
-    color: var(--bg);
-    border: none;
-    padding: 10px 20px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
   }
-  footer.actions button.copy-btn:hover:not(:disabled) { filter: brightness(1.1); }
+  footer.actions button.copy-btn:hover:not(:disabled) { background: var(--surface-muted); color: var(--text); }
   footer.actions button.copy-btn.copied { background: #4ade80; color: var(--bg); }
 </style>
 </head>

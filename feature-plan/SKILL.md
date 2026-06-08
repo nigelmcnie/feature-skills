@@ -271,7 +271,7 @@ When the user replies (with answers or "go"), also fetch active comments
 from the webapp before applying anything:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
 ```
 
 If the `comments` array is non-empty, fold each comment into the same
@@ -280,7 +280,7 @@ triage as reviewer feedback. After applying, integrate the consumed ids:
 ```bash
 curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
   -H 'Content-Type: application/json' \
-  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
+  -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
@@ -323,7 +323,7 @@ are new comments in the webapp, then at each iterate round fetch active
 comments from the webapp first:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
 ```
 
 If the `comments` array is non-empty, fold them in and integrate the ids

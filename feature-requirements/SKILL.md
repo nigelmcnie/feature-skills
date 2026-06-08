@@ -436,7 +436,7 @@ Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
 `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`):
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html"
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html"
 ```
 
 - `curl` error → server unreachable; fall back to clipboard (see below).
@@ -476,7 +476,7 @@ the server was unavailable:
 the webapp immediately after the synthesis response arrives:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
 ```
 
 If the `comments` array is non-empty, fold each comment in as additional
@@ -487,7 +487,7 @@ reappear next round:
 ```bash
 curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
   -H 'Content-Type: application/json' \
-  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
+  -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy

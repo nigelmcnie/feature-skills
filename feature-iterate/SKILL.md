@@ -65,7 +65,7 @@ endpoint — the absolute path of the highest-numbered
 `review-feedback-<N>.html` in the dev-store is the key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
 ```
 
 - `200 submitted=true` → parse `responses` and `routine_flags` from the
@@ -103,8 +103,8 @@ The user may also have left click-to-comment annotations on
 the spine doc paths, not the feedback doc path:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
-curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
 ```
 
 For each doc with a non-empty `comments` array, fold the comments in as
@@ -113,7 +113,7 @@ additional feedback. Then integrate the consumed ids:
 ```bash
 curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
   -H 'Content-Type: application/json' \
-  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
+  -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
 # repeat for plan.html if it also had comments
 ```
 
