@@ -99,8 +99,26 @@ Interpretation (same whether from HTTP or clipboard):
   discuss — their comment explains why. Treat as needing your call.
 
 The user may also have left click-to-comment annotations on
-`requirements.html` or `plan.html` and pasted a `{"doc": ".../<file>",
-"comments": [...]}` blob. Fold those in as additional feedback.
+`requirements.html` or `plan.html`. Fetch those from the webapp — using
+the spine doc paths, not the feedback doc path:
+
+```bash
+curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+```
+
+For each doc with a non-empty `comments` array, fold the comments in as
+additional feedback. Then integrate the consumed ids:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+  -H 'Content-Type: application/json' \
+  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
+# repeat for plan.html if it also had comments
+```
+
+**Fallback**: if the server is unreachable, ask the user to click **Copy
+comments** on the relevant doc and paste the blob.
 
 **Sanity-check (clipboard fallback only)**: verify the `doc` field of any
 pasted blob matches `docs/features/<FEATURE>/review-feedback-<N>` for

@@ -345,8 +345,8 @@ Prompt for the reviewer:
 > Be specific. Reference sections by name. Focus on substance, not style.
 
 The user may leave click-to-comment annotations inline in
-`requirements.html` while reading. Those come back as a "Copy comments"
-JSON blob in Step 6b.
+`requirements.html` while reading. These are fetched via the webapp in
+Step 6b when the synthesis is submitted.
 
 ## Step 6: Produce feedback synthesis document
 
@@ -472,32 +472,41 @@ the server was unavailable:
 - Items in `routine_flags` are routine items the user wants to discuss
   — their comment explains why. Treat as needing your call.
 
-**Click-to-comment annotations** (from `requirements.html`):
+**Click-to-comment annotations** (from `requirements.html`): fetch from
+the webapp immediately after the synthesis response arrives:
+
+```bash
+curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+```
+
+If the `comments` array is non-empty, fold each comment in as additional
+feedback — each is a piece of marginalia anchored to a selected passage.
+After folding them in, mark the consumed ids as integrated so they don't
+reappear next round:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+  -H 'Content-Type: application/json' \
+  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
+```
+
+**Fallback**: if the server is unreachable, ask the user to click **Copy
+comments** in `requirements.html` and paste the JSON blob:
 
 ```json
 {
   "doc": "docs/features/<FEATURE>/requirements",
-  "comments": [
-    {"excerpt": "...", "text": "user comment"}
-  ]
+  "comments": [{"excerpt": "...", "text": "user comment"}]
 }
 ```
-
-Each comment is a piece of marginalia anchored to a selected passage.
 
 ### Sanity-check (clipboard fallback only)
 
 When using the clipboard fallback, verify the `doc` field of any pasted
-blob matches what you expect:
-
-- Synthesis blob: expected
-  `docs/features/<FEATURE>/requirements-feedback-<N>` for the round
-  you just wrote in Step 6.
-- Click-to-comment blob: expected
-  `docs/features/<FEATURE>/requirements`.
-
-If the value doesn't match (wrong feature, wrong round, or a stale
-tab), warn the user inline and don't proceed until they acknowledge.
+blob — synthesis blob should be
+`docs/features/<FEATURE>/requirements-feedback-<N>`, comments blob should
+be `docs/features/<FEATURE>/requirements`. If not, warn and confirm before
+proceeding.
 
 ### Re-render requirements.html
 

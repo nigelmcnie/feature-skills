@@ -267,26 +267,25 @@ Present the triage in chat — do not write a synthesis document. Format:
 >
 > Reply with answers (or "go" to take my take on all of them) and I'll apply.
 
-The user may also leave click-to-comment annotations in `plan.html`
-and paste a JSON blob back. Format:
+When the user replies (with answers or "go"), also fetch active comments
+from the webapp before applying anything:
 
-```json
-{
-  "doc": "docs/features/<FEATURE>/plan",
-  "comments": [
-    {"excerpt": "...", "text": "user comment"}
-  ]
-}
+```bash
+curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
 ```
 
-Fold those comments into the same triage — each comment is an
-additional piece of feedback. The user may paste comments alongside
-the reviewer's output, before it, or independently.
+If the `comments` array is non-empty, fold each comment into the same
+triage as reviewer feedback. After applying, integrate the consumed ids:
 
-Before folding the blob in, sanity-check the `doc` field: it should
-be `docs/features/<FEATURE>/plan`. If it doesn't match (wrong
-feature, or pasted from a different doc by mistake), warn the user
-inline and don't proceed until they confirm.
+```bash
+curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+  -H 'Content-Type: application/json' \
+  -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
+```
+
+**Fallback**: if the server is unreachable, ask the user to click **Copy
+comments** in `plan.html` and paste the JSON blob:
+`{"doc": "docs/features/<FEATURE>/plan", "comments": [...]}`.
 
 Wait for the user's response. Apply the "Will apply" items plus the
 resolved questions and any actionable comment annotations.
@@ -319,12 +318,16 @@ tab to see the new render.
 
 ## Step 5: Iterate
 
-If the user provides further feedback via any of:
+If the user provides further feedback via chat instructions or if there
+are new comments in the webapp, then at each iterate round fetch active
+comments from the webapp first:
 
-- Click-to-comment JSON pasted from `plan.html`.
-- Direct chat instructions.
+```bash
+curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+```
 
-Then:
+If the `comments` array is non-empty, fold them in and integrate the ids
+(same as Step 4). Then:
 
 1. Re-read `plan.html` to pick up its current state.
 2. Apply the new feedback by rewriting `plan.html` (fresh render).
@@ -341,8 +344,9 @@ When the user signals approval — any of: "looks good", "approved",
 "let's implement", "ready to implement", "start building", "time to
 implement", or similar:
 
-1. Re-confirm: integrate any unprocessed click-to-comment feedback
-   (per Step 4) before proceeding.
+1. Re-confirm: fetch and integrate any remaining active comments from the
+   webapp (same `GET /comments?path=` + `POST /comments/integrate` as Step
+   4) before proceeding.
 2. Commit only what ended up in the repo via the export step:
    - If `[export].plan` is `markdown` or `html`, commit
      `docs/features/<FEATURE>/plan.{md,html}`.
