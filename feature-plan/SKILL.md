@@ -208,17 +208,12 @@ Remember the export-target path; you'll commit it at handoff (Step 6).
 
 ### Open it
 
-```bash
-google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html &
-```
-
-The trailing `&` backgrounds the browser process so the agent doesn't
-wait.
+It's in the inbox at `http://127.0.0.1:8800`.
 
 ## Step 3: Present and review in parallel
 
 Tell the user the plan is ready for their review and that the HTML is
-open in Chrome. Spawn a reviewer subagent using the Agent tool with
+in the inbox at `http://127.0.0.1:8800`. Spawn a reviewer subagent using the Agent tool with
 `run_in_background: true` so it runs while the human reads.
 
 Prompt for the reviewer:
@@ -319,7 +314,7 @@ If `.feature-workflow.toml` opts in for `plan`, re-run the export
 step (markdown or HTML copy) so the repo snapshot reflects the
 integrated state.
 
-Summarise what was applied to the user. They can refresh the Chrome
+Summarise what was applied to the user. They can refresh the inbox
 tab to see the new render.
 
 ## Step 5: Iterate

@@ -174,14 +174,9 @@ Otherwise:
 Remember the export-target path (the markdown or HTML file just written
 into the repo); you'll commit it in Step 8.
 
-## Step 6: Open the HTML in Chrome
+## Step 6: View in the webapp inbox
 
-```bash
-google-chrome ~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html &
-```
-
-The trailing `&` backgrounds the browser process so the agent doesn't
-wait.
+It's in the inbox at `http://127.0.0.1:8800`.
 
 ## Step 7: Update the features tracker
 
