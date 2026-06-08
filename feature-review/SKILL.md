@@ -255,8 +255,26 @@ curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/
 - `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
   "still waiting in the inbox…" line roughly every 60 s.
 - `200 submitted=true` → read `responses` and `routine_flags` from the
-  JSON. The user may also have left click-to-comment annotations on
-  `requirements.html` or `plan.html` — those arrive separately (Phase 5).
+  JSON. Then fetch active comments from the spine docs:
+
+  ```bash
+  curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+  curl -fsS "http://127.0.0.1:8800/comments?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+  ```
+
+  For each doc with a non-empty `comments` array, fold the comments in as
+  additional feedback. Then integrate the consumed ids:
+
+  ```bash
+  curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+    -H 'Content-Type: application/json' \
+    -d '{"path": "~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
+  # repeat for plan.html if it also had comments
+  ```
+
+  **Fallback**: if the server is unreachable, ask the user to click **Copy
+  comments** on the relevant doc and paste the JSON blob:
+  `{"doc": "docs/features/<FEATURE>/requirements", "comments": [...]}`.
 
 **Fallback**: if the server is unreachable or the user gives up ("just paste
 it"), ask them to click **Copy responses** and paste the JSON blob. The
