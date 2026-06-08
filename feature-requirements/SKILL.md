@@ -487,7 +487,7 @@ reappear next round:
 ```bash
 curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
   -H 'Content-Type: application/json' \
-  -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
+  -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy

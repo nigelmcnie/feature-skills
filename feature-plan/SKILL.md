@@ -280,7 +280,7 @@ triage as reviewer feedback. After applying, integrate the consumed ids:
 ```bash
 curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
   -H 'Content-Type: application/json' \
-  -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
+  -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy

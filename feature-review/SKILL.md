@@ -268,7 +268,7 @@ curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-d
   ```bash
   curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
     -H 'Content-Type: application/json' \
-    -d '{"path": "$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
+    -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
   # repeat for plan.html if it also had comments
   ```
 
