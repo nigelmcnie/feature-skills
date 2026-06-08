@@ -234,22 +234,39 @@ Update in the template:
 
 It's in the inbox at `http://127.0.0.1:8800`.
 
-### Hand off
+### Poll for submission
 
-Tell the user the synthesis doc is open. You'll wait for them to
-fill in "Your thoughts" for items needing input, click **Copy
-responses**, and paste the JSON blob back. The user may also leave
-click-to-comment annotations on `requirements.html` or `plan.html`
-and paste a `{"doc": ".../<file>", "comments": [...]}` blob.
+After writing the doc, force-walk so the webapp indexes it:
 
-When the JSON arrives, sanity-check the `doc` field — for the
-synthesis blob it should be
-`docs/features/<FEATURE>/review-feedback-<N>` for the N you just
-opened; for click-to-comment blobs it should match
-`docs/features/<FEATURE>/{requirements,plan}`. If it doesn't, warn
-the user inline ("the pasted blob's `doc` field is `X`, but I
-expected `Y` — looks like the wrong tab") and confirm before
-proceeding.
+```bash
+curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
+```
+
+Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
+`<ABS_PATH>` is the absolute path of the doc you just wrote, e.g.
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`):
+
+```bash
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
+```
+
+- `curl` error → server unreachable; fall back to clipboard (see below).
+- `404` → not yet indexed; sleep 5, retry.
+- `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
+  "still waiting in the inbox…" line roughly every 60 s.
+- `200 submitted=true` → read `responses` and `routine_flags` from the
+  JSON. The user may also have left click-to-comment annotations on
+  `requirements.html` or `plan.html` — those arrive separately (Phase 5).
+
+**Fallback**: if the server is unreachable or the user gives up ("just paste
+it"), ask them to click **Copy responses** and paste the JSON blob. The
+`responses`/`routine_flags` shape is identical either way. See
+`docs/webapp-polling.md` in the feature-skills repo for the full convention.
+
+**Sanity-check (clipboard fallback only)**: verify the `doc` field of any
+pasted blob — for the synthesis blob it should be
+`docs/features/<FEATURE>/review-feedback-<N>` for the N you just opened.
+If it doesn't match, warn and confirm before proceeding.
 
 Then parse and summarise which items will be addressed in
 `/feature-iterate` and which are being set aside. The synthesis HTML

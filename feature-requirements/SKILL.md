@@ -423,21 +423,39 @@ Update in the template:
 
 It's in the inbox at `http://127.0.0.1:8800`.
 
-### Hand off
+### Poll for submission
 
-Tell the user the synthesis doc is open. You'll wait for them to:
+After writing the doc, force-walk so the webapp indexes it:
 
-1. Click **Copy responses** in the synthesis doc and paste the JSON
-   blob back, AND/OR
-2. Leave click-to-comment annotations in `requirements.html` and click
-   **Copy comments** to paste that JSON blob back.
+```bash
+curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
+```
 
-They may paste one, the other, or both — and may iterate (paste
-synthesis, then add comments later, etc.).
+Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
+`<ABS_PATH>` is the absolute path of the doc you just wrote, e.g.
+`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`):
+
+```bash
+curl -fsS "http://127.0.0.1:8800/synthesis-response?path=~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html"
+```
+
+- `curl` error → server unreachable; fall back to clipboard (see below).
+- `404` → not yet indexed; sleep 5, retry.
+- `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
+  "still waiting in the inbox…" line roughly every 60 s.
+- `200 submitted=true` → read `responses` and `routine_flags` from the
+  JSON and proceed to Step 6b.
+
+**Fallback**: if the server is unreachable or the user gives up ("just paste
+it"), ask them to click **Copy responses** in the synthesis doc and paste
+the JSON blob. The `responses`/`routine_flags` shape is identical either
+way. See `docs/webapp-polling.md` in the feature-skills repo for the full
+convention.
 
 ## Step 6b: Integrate feedback
 
-Two JSON shapes can arrive in chat:
+Two inputs can arrive — via HTTP polling (Step 6) or as clipboard pastes if
+the server was unavailable:
 
 **Synthesis-doc responses** (from `requirements-feedback-<N>.html`):
 
@@ -467,28 +485,19 @@ Two JSON shapes can arrive in chat:
 
 Each comment is a piece of marginalia anchored to a selected passage.
 
-### Sanity-check the `doc` field
+### Sanity-check (clipboard fallback only)
 
-Before integrating either blob, verify the `doc` field matches what
-you expect for this feature and round:
+When using the clipboard fallback, verify the `doc` field of any pasted
+blob matches what you expect:
 
 - Synthesis blob: expected
   `docs/features/<FEATURE>/requirements-feedback-<N>` for the round
-  you just opened in Step 6.
+  you just wrote in Step 6.
 - Click-to-comment blob: expected
   `docs/features/<FEATURE>/requirements`.
 
 If the value doesn't match (wrong feature, wrong round, or a stale
-tab from another session), warn the user inline ("the pasted blob's
-`doc` field is `X`, but I expected `Y` — looks like the wrong tab.
-Confirm before I integrate?") and don't proceed until they
-acknowledge. The blob author may legitimately want to apply
-cross-session annotations, but the default assumption is mistaken
-paste.
-
-If the user signals completion without pasting anything (e.g. "i'm
-done"), ask which they meant: the synthesis blob, the comments blob,
-or both. Don't proceed without explicit input.
+tab), warn the user inline and don't proceed until they acknowledge.
 
 ### Re-render requirements.html
 
