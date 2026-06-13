@@ -16,6 +16,7 @@ workflow: requirements → plan → implement → review → iterate.
 | `feature-qa` | Run the project's quality control checks |
 | `feature-review` | Review the merged implementation on `main` |
 | `feature-iterate` | Address review feedback |
+| `feature-retro` | Retro on how the *process* went; surface workflow improvements |
 
 Most skills set `disable-model-invocation: true` and are invoked via slash
 commands (`/feature-plan`, etc.). `feature-context` and `feature-choice`
@@ -47,6 +48,7 @@ script is safe.
 /feature-implement <name>      # implement one phase (re-invoke per phase)
 /feature-review <name>         # review after all phases merged
 /feature-iterate <name>        # address review feedback
+/feature-retro <name>          # retro the process at end of a session
 ```
 
 `/feature` picks up where you left off if you don't know the right

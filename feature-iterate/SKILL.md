@@ -331,3 +331,15 @@ If the re-reviewer came back clean OR the user signals satisfaction
   > mark-shipped procedure if everything's clean.
 
   Don't try to mark shipped from a branch.
+
+## Step 7: Invite a process retro
+
+Before wrapping up this session, add a soft one-line invite:
+
+> Before you wrap up, consider `/feature-retro <FEATURE>` — it looks
+> back over how the *process* went (not the code) and surfaces ways to
+> streamline the feature-skills workflow itself.
+
+This is a suggestion, not a step you run yourself. Skip it if the
+iteration was trivial (a one-line tweak with no friction worth
+reflecting on).
