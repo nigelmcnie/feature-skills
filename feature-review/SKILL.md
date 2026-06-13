@@ -165,6 +165,12 @@ PLAN_PATH resolved in Step 2):
 > - When you find an issue, check whether the same *class* of issue recurs
 >   elsewhere in the touched code — sibling call sites, parallel fields,
 >   adjacent loops — and flag every instance, not just the first one you hit.
+> - **Deviations**: where does the implementation diverge from the plan,
+>   the requirements, the context doc, `CLAUDE.md`, or a prior decision?
+>   Call each out explicitly with its magnitude — don't bury it as a minor
+>   weakness.
+> - **Risk**: which changes are the hardest to reverse or highest blast
+>   radius (migrations, stored data, trust boundaries)?
 >
 > Produce structured feedback. Be specific with file paths and line numbers.
 
@@ -202,9 +208,17 @@ Sort each finding into one of three buckets:
 
 - **Need your call**: a genuine decision — product/conceptual choices,
   scope or phasing trade-offs, deferrals, naming for concepts, a
-  behaviour change, anything irreversible, anything you're not confident
-  about, or anything that assumes something about dev velocity. **These,
-  and only these, pause for the developer.**
+  behaviour change, anything hard to reverse or high blast radius
+  (stored data, security, trust boundaries), anything you're not
+  confident about, or anything that assumes something about dev
+  velocity. Two cases are easy to miss and belong here: (1) anything
+  your take resolves by **deferring, cutting, or not doing** something
+  raised — a confident "let's not" is still a direction decision, not an
+  Apply; (2) **deviations** from the requirements, plan, context doc,
+  `CLAUDE.md`, or a prior recorded decision — these capture what the
+  developer already believes, so a meaningful divergence is where their
+  input is most likely needed. **These, and only these, pause for the
+  developer.**
 - **Apply**: everything you'll fix without asking — bug fixes,
   factual/path corrections, defensive-test additions, naming, wording,
   observability, determinism fixes, schema minor specs, and any
