@@ -49,11 +49,20 @@ git branch --show-current
 
 ## Step 1: Gather feedback
 
-The review synthesis doc is canonical HTML at
+**Inline handoff (the common path).** When `/feature-review` flows
+straight into this skill, it has already triaged the feedback inline
+(its Step 8) and there is **no synthesis doc** — the "Applying" items
+and any resolved "Need your call" answers are in the conversation. That
+triage *is* the feedback; use it directly and skip the doc-reading
+below. Jump to Step 2.
+
+Otherwise — when invoked standalone (the developer ran
+`/feature-iterate` fresh in a later session) — the review synthesis doc
+is canonical HTML at
 `~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`
-when feature-review has produced one. Legacy markdown synthesis docs
-at `docs/features/<FEATURE>/review-feedback-<N>.md` are still
-supported for transitional reviews.
+when an older review produced one. Legacy markdown synthesis docs at
+`docs/features/<FEATURE>/review-feedback-<N>.md` are still supported for
+transitional reviews.
 
 Pick the highest-numbered synthesis doc (HTML preferred over markdown
 if both exist for the same N).
@@ -181,6 +190,12 @@ feature-html-to-md \
 
 ### Archive the synthesis doc
 
+**Skip this entirely on the inline-handoff path** — review produced no
+synthesis doc, so there is nothing to archive; the durable record is
+the **Review decisions** section you just wrote plus the commit. Only
+when a synthesis doc actually exists (a standalone invocation off an
+older review) do the following.
+
 Archive the feedback file rather than deleting it (preserves a record
 for later analysis).
 
@@ -260,6 +275,9 @@ docs exist, otherwise legacy markdown paths):
 > Check whether the previous review feedback has been addressed, and
 > flag any new issues introduced by the changes. Also check whether
 > the changes still align with the requirements — not just the plan.
+> When you find an issue, check whether the same *class* of issue recurs
+> elsewhere in the touched code — sibling call sites, parallel fields,
+> adjacent loops — and flag every instance, not just the first one you hit.
 >
 > Be specific with file paths and line numbers.
 
@@ -301,18 +319,21 @@ requirements.
 Summarise what changed, what was declined and why, and whether all
 quality checks pass.
 
-## Step 6: Wrap up — iterate more, or ship
+## Step 6: Wrap up — ship
 
-The iteration loop ends here. The feature is either ready to ship or
-needs another round.
+A single corrective pass is the norm: re-review (Step 4) → apply its
+findings inline (Step 5) → ship. The dev-store history shows no feature
+has ever needed a second iteration round, so **default to shipping**
+once the re-review is addressed; treat a second round as the rare
+exception, not a gate to wait at.
 
-If the re-reviewer surfaced findings worth another round, or the user
-signals they want to keep iterating ("more changes", "another round",
-or similar), tell them they can re-invoke `/feature-iterate <FEATURE>`
-once this iteration's MR has landed (or stay in chat for more edits
-on the current branch).
+Only if the re-reviewer surfaced something genuinely substantial, or the
+user explicitly asks to keep going ("more changes", "another round"),
+tell them they can re-invoke `/feature-iterate <FEATURE>` once this
+iteration's MR has landed (or stay in chat for more edits on the current
+branch).
 
-If the re-reviewer came back clean OR the user signals satisfaction
+Otherwise — re-review addressed, or the user signals satisfaction
 ("looks good", "all done", "ship it", "nothing else", or similar):
 
 - **If the current branch is `main`** (the Step 0.5 direct-commit

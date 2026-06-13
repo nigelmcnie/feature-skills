@@ -162,148 +162,104 @@ PLAN_PATH resolved in Step 2):
 > - Are there tests? Do they cover the key behaviours?
 > - Code quality issues (not style — the project's formatter handles that)
 > - Any security concerns (stored user data, trust boundaries)?
+> - When you find an issue, check whether the same *class* of issue recurs
+>   elsewhere in the touched code — sibling call sites, parallel fields,
+>   adjacent loops — and flag every instance, not just the first one you hit.
 >
 > Produce structured feedback. Be specific with file paths and line numbers.
 
-## Step 8: Produce feedback synthesis document
+## Step 8: Triage and act
 
-For each piece of reviewer feedback, decide your take. **My take**
-should say whether it should be fixed, is a blocker, or can be
-ignored — with reasoning. Address blocking issues before suggestions
-or nitpicks.
+For each piece of reviewer feedback, decide your take — whether it
+should be fixed, is a genuine decision for the developer, or can be
+ignored, with reasoning.
+
+Review converges in one pass. The dev-store history is unambiguous:
+across the features reviewed so far, **no feature has ever needed a
+second review round**, the findings are reliably minor, and the
+developer reliably accepts them. So this stage does **not** write a
+synthesis doc or poll the inbox the way `/feature-requirements` does —
+it mirrors `/feature-plan`'s lighter inline triage, and it **acts**
+rather than asking-then-waiting. You surface what you found, do the
+uncontroversial work, and pause **only** for a genuine decision. The
+developer keeps the ability to redirect after seeing your summary; the
+history shows they almost never need to.
+
+First, fold in any click-to-comment annotations the developer left on
+the spine docs (a bonus input, not a gate — skip on any error):
+
+```bash
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+```
+
+Integrate any consumed ids afterwards (`POST /comments/integrate`, the
+same contract the other skills use), so they don't resurface next round.
 
 ### Triage
 
-Items get bucketed into three tiers:
+Sort each finding into one of three buckets:
 
-- **Needs your input**: product/conceptual decisions, scope or
-  phasing trade-offs, deferral decisions, naming for concepts,
-  anything you're not confident about, anything where you might be
-  making assumptions about dev velocity.
-- **Routine**: only items you're highly confident are
-  uncontroversial — factual citation/path fixes, naming mechanics
-  (rename X to Y), wording polish, defensive-test additions,
-  observability/logging granularity, schema minor specs.
-- **Feedback** (the middle): everything else, in the reviewer's
-  original order.
+- **Need your call**: a genuine decision — product/conceptual choices,
+  scope or phasing trade-offs, deferrals, naming for concepts, a
+  behaviour change, anything irreversible, anything you're not confident
+  about, or anything that assumes something about dev velocity. **These,
+  and only these, pause for the developer.**
+- **Apply**: everything you'll fix without asking — bug fixes,
+  factual/path corrections, defensive-test additions, naming, wording,
+  observability, determinism fixes, schema minor specs, and any
+  middle-ground feedback you agree with. When unsure whether something
+  is a decision or just an Apply, lean Apply but state your take when you
+  present it, so a wrong call is visible and cheap to reverse.
+- **Skip**: already handled, out of scope, or you disagree — note why.
 
-When in doubt, prefer **Feedback** over **Routine**. The cost of a
-Feedback item that turns out to be uncontroversial is small; the
-cost of a misclassified Routine item is larger.
+### Present and act
 
-Item-level guidance:
+Present the triage inline — no synthesis doc, no inbox poll:
 
-- **Numbered titles**: descriptive enough that a reader grasps the
-  issue at a glance. Number continuously across all three tiers
-  (1, 2, 3, …), not restarting per section.
-- **Detail paragraph**: explain the item simply, in plain language —
-  what it is, where it occurs, and why it matters — so the reader
-  grasps it without holding the full review in their head. Assume
-  they haven't been following along closely: spell out jargon, name
-  the concrete file/section, and avoid terse shorthand. A sentence or
-  two is usually enough. Skip only in the Routine tier.
-- **My take**: focus on substance. Length matches the complexity of
-  the call. In the Routine tier, keep it to one line.
-- **"Your thoughts"**: left blank in the top and middle tiers (the
-  HTML form provides the textareas). The Routine tier has no input
-  — the user pushes back in chat if needed.
+> Review feedback:
+>
+> **Applying:**
+> - <one-line description of each Routine/Feedback item you'll fix>
+>
+> **Skipping:** (omit if none)
+> - <one-line + why: already handled, out of scope, or you disagree>
+>
+> **Need your call:** (omit if none)
+> 1. <the decision>. My take: <brief recommendation>.
 
-### Pick the next N
+Then:
 
-Count existing review-feedback files across both the dev-store
-(`~/.claude/feature-docs/<PROJECT>/<FEATURE>/`, including
-`.feedback-archive/`) and the legacy repo location
-(`docs/features/<FEATURE>/`, including `.feedback-archive/`). Take
-the max N and increment. If none exist, `N = 1`.
+- **No "Need your call" items** (the common case) → **proceed
+  immediately; do not wait for a yes.** Continue into the iteration
+  stage (Step 9), apply the "Applying" items, and summarise what you
+  did when finished. The developer redirects after the fact if
+  anything's off — the history shows they almost never need to.
+- **"Need your call" items present** → surface them and wait. Apply any
+  "Applying" items the decision can't affect; hold anything it might
+  change. Resume once answered.
+- **Nothing to apply and nothing to ask** (a fully clean review) → skip
+  straight to Step 10 (mark shipped).
 
-### Write the HTML synthesis doc
+There is no review-feedback HTML doc in this flow — the triage lives in
+the conversation and is consumed inline by the iteration that follows.
+Decision capture and any feedback-doc archiving are handled inside the
+iteration stage (`/feature-iterate` Step 2).
 
-Use `~/.claude/skills/feature/feedback-template.html` as the basis.
-Copy its CSS and JavaScript verbatim. Render the triaged items into
-the template's three-tier structure (Needs your input / Feedback /
-Routine).
+## Step 9: Iterate
 
-Write to
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`.
-Create parent dirs with `mkdir -p` if needed.
-
-Update in the template:
-- `<title>`, the `<h1>`, the subtitle (e.g. "Review Feedback Synthesis #N").
-- The meta line (item counts).
-- The textarea total in the footer.
-- The JS `docId` constant — e.g.
-  `docs/features/<FEATURE>/review-feedback-<N>`.
-
-### Open it
-
-It's in the inbox at `http://127.0.0.1:8800`.
-
-### Poll for submission
-
-After writing the doc, force-walk so the webapp indexes it:
-
-```bash
-curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
-```
-
-Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
-`<ABS_PATH>` is the absolute path of the doc you just wrote, e.g.
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`):
-
-```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
-```
-
-- `curl` error → server unreachable; fall back to clipboard (see below).
-- `404` → not yet indexed; sleep 5, retry.
-- `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
-  "still waiting in the inbox…" line roughly every 60 s.
-- `200 submitted=true` → read `responses` and `routine_flags` from the
-  JSON. Then fetch active comments from the spine docs:
-
-  ```bash
-  curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
-  curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
-  ```
-
-  For each doc with a non-empty `comments` array, fold the comments in as
-  additional feedback. Then integrate the consumed ids:
-
-  ```bash
-  curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
-    -H 'Content-Type: application/json' \
-    -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
-  # repeat for plan.html if it also had comments
-  ```
-
-  **Fallback**: if the server is unreachable, ask the user to click **Copy
-  comments** on the relevant doc and paste the JSON blob:
-  `{"doc": "docs/features/<FEATURE>/requirements", "comments": [...]}`.
-
-**Fallback**: if the server is unreachable or the user gives up ("just paste
-it"), ask them to click **Copy responses** and paste the JSON blob. The
-`responses`/`routine_flags` shape is identical either way. See
-`docs/webapp-polling.md` in the feature-skills repo for the full convention.
-
-**Sanity-check (clipboard fallback only)**: verify the `doc` field of any
-pasted blob — for the synthesis blob it should be
-`docs/features/<FEATURE>/review-feedback-<N>` for the N you just opened.
-If it doesn't match, warn and confirm before proceeding.
-
-Then parse and summarise which items will be addressed in
-`/feature-iterate` and which are being set aside. The synthesis HTML
-stays in dev-store for `/feature-iterate` to consume.
-
-## Step 9: Handoff
-
-If there are findings to address and the user wants to act on them —
-any of: "let's fix those", "address the feedback", "iterate", "go
-ahead", or similar — automatically continue into the iteration stage.
+When there are items to apply (the common case), **continue into the
+iteration stage automatically — do not wait to be asked.** That is the
+whole point of the act-then-summarise flow: the triage from Step 8 is
+the input, and you carry it straight into the fixes. If you paused on a
+"Need your call" item in Step 8, resume here once it's answered. If the
+review found nothing to apply, skip to Step 10.
 
 **Do NOT use the Skill tool to invoke `/feature-iterate`** — it sets
 `disable-model-invocation: true`, which blocks the Skill tool. Read
 `~/.claude/skills/feature-iterate/SKILL.md` and execute its
-instructions inline in this conversation.
+instructions inline in this conversation, treating the Step 8 triage as
+the feedback to address (there is no synthesis doc to read).
 
 ## Step 10: Mark shipped
 
@@ -421,20 +377,17 @@ If something was exported, commit the change directly to the current
 branch (we're on main; see Step 1) with the message
 `docs: mark <FEATURE> as shipped` and push.
 
-### Archive any unprocessed synthesis docs
+### Archive any leftover synthesis docs
 
-If the user ships without iteration, the synthesis HTML from Step 8
-is still live in
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html`.
-Archive it now:
+The inline-triage flow (Step 8) writes no synthesis doc, so there is
+normally nothing to archive. But a doc may exist from an older
+standalone review round — sweep any leftover into the archive
+defensively (the `|| true` makes it a no-op when there's none):
 
 ```bash
 mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
 mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/review-feedback-*.html \
    ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/ 2>/dev/null || true
 ```
-
-If `/feature-iterate` already ran, the file is already archived and
-the move is a no-op.
 
 Tell the user the feature is marked shipped.
