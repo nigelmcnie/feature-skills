@@ -124,6 +124,35 @@ during this session and never restored. An implement or iterate agent can
 stash work mid-feature and forget it; a forgotten stash is easy to lose
 and risky to pop blindly later. Flag any for the developer to clear.
 
+### Surfacing calibration (when the webapp store is available)
+
+The sharpest signal for tuning the "surface only what I care about" dial
+is the developer's own past answers. The webapp persists them in
+`~/.local/share/feature-skills-webapp/db.sqlite` — `synthesis_responses`,
+one row per item: a non-empty `response`/`routine_flag` means the
+developer engaged (redirected); blank means they agreed with the take.
+Tiers aren't stored in the DB — read them from the synthesis HTML in each
+feature's `.feedback-archive/` (the `tier-needs-input` / `tier-feedback` /
+`tier-routine` sections), or from the inline "Need your call" vs
+"Applying" split that review/plan now use.
+
+For the feature(s) reviewed this cycle, join answers to tiers and flag:
+
+- **Misses** — items the developer redirected that were *not* surfaced as
+  a decision (sat in Feedback / Applying). Each is a triage gap: what
+  shape did it have that the criteria didn't catch? (Recurring shapes to
+  watch: a take that resolved toward deferring/cutting; a deviation from
+  the context doc / `CLAUDE.md` / a prior decision; a risk.)
+- **Over-surfacing** — decision-tier items the developer left blank
+  (agreed). A doc where *everything* surfaced was agreed suggests the
+  reviewer escalated too much.
+- **Recurring redirect shapes** not yet named in the triage criteria —
+  candidates to add (a quick win), or to discuss if larger.
+
+Keep it light when data is thin — a couple of rounds won't support strong
+conclusions. This is the calibration loop the workflow is meant to run on
+itself.
+
 ## Output format
 
 Group findings under these headings, highest-leverage first. **Omit any

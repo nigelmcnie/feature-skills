@@ -341,6 +341,10 @@ Prompt for the reviewer:
 > - What's over-specified for a requirements doc (belongs in the plan)
 > - Strengths and weaknesses of proposed approaches
 > - Missed opportunities or alternative approaches
+> - Deviations from the feature's context doc, `CLAUDE.md`, or any prior
+>   recorded decision — call each out explicitly, with how far it diverges
+> - Risk: which requirements are the hardest to reverse or have the widest
+>   blast radius (stored user data, security, trust boundaries)?
 >
 > Be specific. Reference sections by name. Focus on substance, not style.
 
@@ -371,7 +375,17 @@ Items get bucketed into three tiers:
 - **Needs your input**: product/conceptual decisions, scope or
   phasing trade-offs, deferral decisions, naming for concepts,
   anything you're not confident about, anything where you might be
-  making assumptions about dev velocity.
+  making assumptions about dev velocity. In particular, always surface:
+  - anything your take resolves by **deferring, cutting, or not doing**
+    something the reviewer raised — a confident "let's not" is still a
+    direction decision; don't fold it down into Feedback as if agreed.
+  - **high-risk** choices: hard to reverse, wide blast radius, or
+    touching stored user data, security, or trust boundaries.
+  - **deviations** from the context doc, `CLAUDE.md`, or a prior
+    recorded decision — these capture what the developer already
+    believes about the feature, so a meaningful divergence (not every
+    wording difference) is where their input is most likely needed;
+    name the divergence and its size.
 - **Routine**: only items you're highly confident are
   uncontroversial — factual citation/path fixes, naming mechanics
   (rename X to Y), wording polish, defensive-test additions,

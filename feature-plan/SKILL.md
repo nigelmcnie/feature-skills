@@ -232,6 +232,11 @@ Prompt for the reviewer:
 > - Are there dependency issues or blockers?
 > - Is the phasing sensible? Can each phase be independently tested?
 > - Are the code snippets consistent with existing patterns?
+> - Deviations: where does the plan diverge from the requirements, the
+>   context doc, `CLAUDE.md`, or a prior decision? Call each out with its
+>   magnitude.
+> - Risk: which parts of the plan are the hardest to reverse or highest
+>   blast radius (migrations, stored data, trust boundaries)?
 >
 > Be specific. Reference sections by name.
 
@@ -245,7 +250,14 @@ When the reviewer returns, triage each item into one of:
   without asking.
 - **Ask** — the item involves a real decision: product semantics,
   naming for concepts, scope or phasing trade-offs, deferral
-  decisions, anything strategic. Surface inline with your take.
+  decisions, anything strategic, anything hard to reverse or high blast
+  radius. Surface inline with your take. Two easy-to-miss cases belong
+  here: (1) anything your take resolves by **deferring, cutting, or not
+  doing** something the reviewer raised — a confident "let's not" is
+  still a direction decision, not an Apply; (2) **deviations** from the
+  requirements, context doc, `CLAUDE.md`, or a prior recorded decision —
+  these capture what the developer already believes, so a meaningful
+  divergence is where their input is most likely needed.
 - **Skip** — you disagree with the reviewer or it's already covered.
   Briefly say why.
 
