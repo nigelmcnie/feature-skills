@@ -262,10 +262,18 @@ Present the triage in chat — do not write a synthesis document. Format:
 > - ...
 >
 > **Need your call:**
-> 1. <Question>. My take: <brief>.
-> 2. <Question>. My take: <brief>.
+> 1. <Question>. <Plain-language explanation: what this is about, why
+>    it's a decision, and what's at stake — a sentence or two.> My
+>    take: <brief>.
+> 2. <Question>. <Explanation.> My take: <brief>.
 >
 > Reply with answers (or "go" to take my take on all of them) and I'll apply.
+
+For each "Need your call" item, explain it simply before giving your
+take — what it is, why it's a real decision, and what each direction
+implies — assuming the user hasn't been following the review closely.
+Spell out jargon and name the concrete section. Don't make the user
+reverse-engineer the question from a terse one-liner.
 
 When the user replies (with answers or "go"), also fetch active comments
 from the webapp before applying anything:

@@ -300,3 +300,14 @@ If all phases are now complete, tell the user:
 > session and run `/feature-review <FEATURE>`.
 
 Do not invoke `/feature-review` yourself.
+
+## Step 8: Invite a process retro
+
+Before wrapping up this session, add a soft one-line invite:
+
+> Before you wrap up, consider `/feature-retro <FEATURE>` — it looks
+> back over how the *process* went (not the code) and surfaces ways to
+> streamline the feature-skills workflow itself.
+
+This is a suggestion, not a step you run yourself. Skip it if the session
+was trivial (e.g. a single-line fix with no friction worth reflecting on).

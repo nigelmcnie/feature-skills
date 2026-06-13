@@ -388,8 +388,12 @@ Item-level guidance:
 - **Numbered titles**: descriptive enough that a reader grasps the
   issue at a glance. Number continuously across all three tiers
   (1, 2, 3, …), not restarting per section.
-- **Detail paragraph**: include when the title alone isn't
-  self-evident. Skip in the Routine tier.
+- **Detail paragraph**: explain the item simply, in plain language —
+  what it is, where it occurs, and why it matters — so the reader
+  grasps it without holding the full review in their head. Assume
+  they haven't been following along closely: spell out jargon, name
+  the concrete section, and avoid terse shorthand. A sentence or two
+  is usually enough. Skip only in the Routine tier.
 - **My take**: focus on substance. Length matches the complexity of
   the call. In the Routine tier, keep it to one line.
 - **"Your thoughts"**: left blank in the top and middle tiers (the
