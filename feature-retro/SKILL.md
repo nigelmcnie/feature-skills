@@ -118,6 +118,12 @@ home) and deferred follow-ups are worth a glance, but they're a light
 touch here — the other skills handle them in their normal flow. Don't let
 them become the headline.
 
+One concrete cleanup to check directly, even though cleanups are
+otherwise `/retro`'s lane: run `git stash list` for stashes created
+during this session and never restored. An implement or iterate agent can
+stash work mid-feature and forget it; a forgotten stash is easy to lose
+and risky to pop blindly later. Flag any for the developer to clear.
+
 ## Output format
 
 Group findings under these headings, highest-leverage first. **Omit any
@@ -127,6 +133,8 @@ heading with no findings.**
   and change
 - **Worth a discussion** — larger process changes / feature candidates
   for feature-skills or feature-skills-webapp, talked through inline
+- **Loose ends** — leftover session artefacts to clear, especially
+  forgotten `git stash` entries
 - **For `/retro`** — at most a one-line pointer if you noticed a
   config/install/memory item that's really `/retro`'s job
 
