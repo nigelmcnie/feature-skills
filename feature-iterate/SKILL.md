@@ -41,13 +41,20 @@ Check the current branch (`git branch --show-current`):
      archived markdown in `docs/features/<FEATURE>/.feedback-archive/`);
      call the total M.
   2. Tell the user in one line that you're isolating this round in a
-     worktree, then `EnterWorktree` with name `<FEATURE>-iterate-<M+1>`
-     (branches fresh from `origin/<default>`).
-  3. Rename the branch to the convention:
+     worktree, then create it **the way this repo wants**: check the
+     repo's `CLAUDE.md` (and `.claude/`) for worktree instructions first —
+     some repos need extra setup (database, ports, venv) and provide a
+     tool for it, which you should use, then `EnterWorktree` with
+     `path=<that worktree>`. Otherwise use the standard flow:
+     `EnterWorktree` with name `<FEATURE>-iterate-<M+1>` (branches fresh
+     from `origin/<default>`).
+  3. End up on a branch named `features/<FEATURE>-iterate-<M+1>`, renaming
+     if needed:
      ```bash
      git branch -m features/<FEATURE>-iterate-<M+1>
      ```
-  4. Fresh checkout — install deps if QC/build needs them.
+  4. Fresh checkout — unless the repo's tool provisioned them, install
+     deps if QC/build needs them.
 
   (Quick one-off fix you'd rather land straight on main, un-isolated?
   Only if the user explicitly asks — then stay on main and tell them the
@@ -364,11 +371,11 @@ Otherwise — re-review addressed, or the user signals satisfaction
 
 If this round ran in a worktree (the Step 0.5 default), tear it down once
 its work is safe — after the MR merges, or immediately if you committed
-straight to main:
-
-```bash
-git worktree remove .claude/worktrees/<FEATURE>-iterate-<M+1>
-```
+straight to main. Remove it the way this repo wants: if its `CLAUDE.md`
+documents a worktree tool, use that (it may also tear down the
+database/ports it set up); otherwise `git worktree remove
+.claude/worktrees/<dir>` (or `ExitWorktree` with `action: remove` if
+you're still inside it).
 
 (or `ExitWorktree` with `action: remove` if you're still inside it).
 

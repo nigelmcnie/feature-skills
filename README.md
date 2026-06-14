@@ -141,3 +141,8 @@ invocation cold-caches `beautifulsoup4`; subsequent runs are fast.
   collide in the shared tree; the worktree is torn down once its MR merges.
   Review runs on `main` after all phase MRs land, and isolates its own fixes
   via the same iterate worktree.
+- **Repo-specific worktree setup**: a repo that needs extra setup for a working
+  worktree (database, ports, venv) can document a tool/script in its own
+  `CLAUDE.md`; implement/iterate check there first and use it, falling back to
+  the standard `EnterWorktree` when there are no such instructions. The skills
+  name no specific repo or tool.
