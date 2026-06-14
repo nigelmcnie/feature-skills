@@ -117,6 +117,7 @@ significant design decisions. Include:
 - Schema changes.
 - Key conditional logic ("if X, then Y; otherwise Z").
 - Test descriptions (what's tested, not full test code).
+- For items that parse a known HTML or data structure: a short representative sample (2–5 lines) or a pointer to an example file in the repo. An implementing agent on a cold start can't infer the structure from context alone.
 
 Do NOT include:
 
@@ -246,18 +247,25 @@ When the reviewer returns, triage each item into one of:
 
 - **Apply** — you agree with the reviewer, and the change is
   uncontroversial: factual corrections, missed dependencies,
-  citation/path fixes, polish, wording. These get applied directly
-  without asking.
+  citation/path fixes, polish, wording. This also covers **purely
+  technical calls that have a clear low-risk default and no
+  product/scope/strategic content** (e.g. which stdlib parser, how to
+  scope a test guard, a threat-model boundary already implied by the
+  requirements) — apply these directly with your resolution noted in
+  the "Will apply" list, rather than asking. If you catch yourself
+  labelling an item "low-stakes", it's an Apply, not an Ask.
 - **Ask** — the item involves a real decision: product semantics,
   naming for concepts, scope or phasing trade-offs, deferral
   decisions, anything strategic, anything hard to reverse or high blast
-  radius. Surface inline with your take. Two easy-to-miss cases belong
-  here: (1) anything your take resolves by **deferring, cutting, or not
-  doing** something the reviewer raised — a confident "let's not" is
-  still a direction decision, not an Apply; (2) **deviations** from the
-  requirements, context doc, `CLAUDE.md`, or a prior recorded decision —
-  these capture what the developer already believes, so a meaningful
-  divergence is where their input is most likely needed.
+  radius — in short, a choice the developer would plausibly answer
+  differently from you. Surface inline with your take. Two easy-to-miss
+  cases belong here: (1) anything your take resolves by **deferring,
+  cutting, or not doing** something the reviewer raised — a confident
+  "let's not" is still a direction decision, not an Apply; (2)
+  **deviations** from the requirements, context doc, `CLAUDE.md`, or a
+  prior recorded decision — these capture what the developer already
+  believes, so a meaningful divergence is where their input is most
+  likely needed.
 - **Skip** — you disagree with the reviewer or it's already covered.
   Briefly say why.
 
