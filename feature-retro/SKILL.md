@@ -64,6 +64,10 @@ Derive `PROJECT = basename "$(git rev-parse --show-toplevel)"` and take
 - `.feedback-archive/*.html` — the synthesis docs from
   requirements/review rounds. Recurring themes across them are gold.
 - `~/.claude/feature-docs/$PROJECT/features.html` — the tracker entry.
+- The project's prior open retro findings, if the webapp store is
+  reachable — see **Recurrence capture** below. Read these before you
+  judge this session; they're what lets you recognise a repeat instead
+  of re-discovering it.
 
 And in the target repo:
 
@@ -105,9 +109,11 @@ Each finding is one of two shapes:
   Name the exact file and change; offer to apply it.
 - **Larger discussion** — a change to how the process works that's worth
   talking through, and may end as a feature to build in feature-skills
-  or feature-skills-webapp. **Discuss it inline — don't capture it as a
-  feature-context or write anything.** The point is the conversation;
-  the developer decides if it's worth pursuing.
+  or feature-skills-webapp. **Discuss it inline — don't spin it into a
+  feature-context.** The point is the conversation; the developer decides
+  if it's worth pursuing. These discussion-class findings are the ones
+  captured to the webapp at retro end (see **Recurrence capture**), so the
+  conversation compounds across retros instead of evaporating.
 
 Be selective. Three sharp findings beat ten padded ones. Low
 signal-to-noise kills a tool like this. If the process ran clean, say so
@@ -153,6 +159,75 @@ Keep it light when data is thin — a couple of rounds won't support strong
 conclusions. This is the calibration loop the workflow is meant to run on
 itself.
 
+## Recurrence capture (when the webapp store is available)
+
+Discussion-class findings used to evaporate when the session ended. The
+webapp now persists them so each retro can stand on what prior retros
+found — the continuous-refinement loop the workflow is built on. The
+contract is two HTTP calls against the local webapp
+(`http://127.0.0.1:8800`, the same localhost-only store the polling
+convention uses). If the server is unreachable or the project isn't known
+to the webapp (`404`), skip silently and run the retro exactly as before
+— capture is an enhancement, never a blocker.
+
+**At the start — read priors.** Before judging this session, pull the
+project's still-open findings:
+
+```bash
+curl -fsS "http://127.0.0.1:8800/retro-findings?project=$PROJECT" 2>/dev/null
+```
+
+This returns the `open` + `deferred` findings, each with an **`id`**,
+`title`, `evidence`, `change`, `feature`, and `recurrence_count`. Read
+them as prose — they're prior process observations. Hold onto the `id`s:
+a new finding that restates one of these cites it as `recurs_from` on the
+post below.
+
+**In session — surface recurrence.** When a finding you're about to raise
+restates a prior one, say so inline as you raise it — "this echoes a
+finding from `doc-view` two retros ago" — so the developer can weigh it as
+a pattern in the moment, not discover the repetition later. A prior
+finding already carrying a high `recurrence_count` is a strong signal it's
+worth promoting to a tracked feature; flag that explicitly.
+
+**At the end — post the discussion findings.** Post every
+*discussion-class* finding (the "Worth a discussion" ones) — **not** quick
+wins (they survive in git) and **not** `/retro` items (they persist as
+config/memory). Capture is autonomous: post all of them, not only the ones
+the developer blessed — you can't tell in the moment which will recur, and
+inbox triage plus the recurrence signal keep the noise down, not
+pre-filtering here.
+
+Generate a fresh run key per invocation — each retro is its own run, so
+the planner's and the implementer's retros on the same feature coexist
+rather than overwriting each other:
+
+```bash
+RUN_KEY=$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')
+```
+
+Write the payload to a temp file (keeps JSON escaping sane) and POST it:
+
+```bash
+curl -fsS -X POST -H 'Content-Type: application/json' \
+  -d @/tmp/retro-findings.json \
+  http://127.0.0.1:8800/retro-findings 2>/dev/null || true
+```
+
+with a body of:
+
+```json
+{ "project": "<PROJECT>",
+  "run": { "key": "<RUN_KEY>", "feature": "<FEATURE>", "ran_at": "<date -u +%FT%TZ>" },
+  "findings": [
+    { "title": "…", "evidence": "…", "change": "…", "recurs_from": <prior id> } ] }
+```
+
+`title` is required; `evidence` and `change` mirror your output format.
+Set `recurs_from` **only** to an `id` you actually read from the GET above
+— a stale, cross-project, or invented id is rejected (`400`); omit the
+field entirely for a genuinely new finding.
+
 ## Output format
 
 Group findings under these headings, highest-leverage first. **Omit any
@@ -176,7 +251,10 @@ For each finding:
 Keep each to two or three lines. Cite the moment so the developer can
 judge it fast.
 
-End with a single line: **"Want me to apply any of the quick wins?"** —
-and if they pick some, do them (editing the relevant `SKILL.md` /
-template). Don't apply anything before they choose, and don't act on the
-discussion items beyond talking them through.
+Once you've surfaced the findings, **post the discussion-class ones to
+the webapp** per **Recurrence capture** above — automatically, without
+waiting to be told which are worth keeping. Then end with a single line:
+**"Want me to apply any of the quick wins?"** — and if they pick some, do
+them (editing the relevant `SKILL.md` / template). Don't apply any quick
+win before they choose, and don't act on the discussion items beyond
+talking them through and capturing them.
