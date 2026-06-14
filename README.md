@@ -135,5 +135,14 @@ invocation cold-caches `beautifulsoup4`; subsequent runs are fast.
 - **Feedback synthesis docs** are archived locally to `.feedback-archive/`
   rather than deleted — locally gitignored.
 - **Branch conventions**: requirements + plan commit to `main`. Implementation
-  branches off `main` to `features/<feature>-p<N>`. Review runs on `main`
-  after all phase MRs land.
+  and iteration run in a per-round **git worktree** (under `.claude/worktrees/`,
+  fresh from `origin/<default>`) on `features/<feature>-p<N>` /
+  `features/<feature>-iterate-<M>`, so parallel agents in the same repo don't
+  collide in the shared tree; the worktree is torn down once its MR merges.
+  Review runs on `main` after all phase MRs land, and isolates its own fixes
+  via the same iterate worktree.
+- **Repo-specific worktree setup**: a repo that needs extra setup for a working
+  worktree (database, ports, venv) can document a tool/script in its own
+  `CLAUDE.md`; implement/iterate check there first and use it, falling back to
+  the standard `EnterWorktree` when there are no such instructions. The skills
+  name no specific repo or tool.

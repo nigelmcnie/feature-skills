@@ -73,21 +73,46 @@ not proceed to the branch check.
 Note the phase number (N) — this is the phase you are about to
 implement.
 
-## Step 1: Branch check
+## Step 1: Isolate this phase in a worktree
 
-The branch for this phase must be `features/<FEATURE>-p<N>` (always include
-the phase number, even for single-phase features — use `-p1`).
+Each phase is built in its own git worktree, so parallel agents in the
+same repo never collide in the shared working tree. The branch must be
+`features/<FEATURE>-p<N>` (always include the phase number, even for
+single-phase features — use `-p1`), since review and MR-detection rely on
+that name.
 
-- If you're already on it, proceed.
-- If you're on `main` or the project's default branch, create it:
+- If you're already on `features/<FEATURE>-p<N>` (e.g. resuming this
+  phase), proceed.
+- Otherwise, from `main` or the default branch, isolate the work. Tell the
+  user in one line that you're isolating this phase in a worktree, then
+  create it **the way this repo wants**:
+  - **Check the repo's `CLAUDE.md` (and `.claude/`) for worktree
+    instructions first.** Some repos need extra setup for a *working*
+    worktree — database, ports, venv, env files — and provide a dedicated
+    tool or script; `EnterWorktree` on its own bypasses that setup. If
+    such instructions exist, follow them. They typically have you run the
+    repo's tool to create the worktree under `.claude/worktrees/`, then
+    call `EnterWorktree` with `path=<that worktree>` to switch the session
+    into it.
+  - **Otherwise, use the standard flow**: `EnterWorktree` with name
+    `<FEATURE>-p<N>`. It branches fresh from `origin/<default-branch>`
+    (the `worktree.baseRef` default), so you start from the latest main —
+    including prior merged phases — with no separate pull.
+  Then make sure you end up on a branch named `features/<FEATURE>-p<N>`,
+  renaming if the tool or standard flow named it otherwise:
   ```bash
-  git checkout -b features/<FEATURE>-p<N>
+  git branch -m features/<FEATURE>-p<N>
   ```
-- If you're on a different branch (including a `features/...` branch that
-  doesn't match this pattern), stop and ask the user before switching.
+  The worktree is a fresh checkout — unless the repo's tool already
+  provisioned them, install whatever QC/build needs (`uv`-based projects
+  resolve on first `uv run`).
+- If you're on some other branch that doesn't match this pattern, stop and
+  ask the user before doing anything.
 
-Tell the user you've switched to a new branch. Never commit implementation
-work directly to the default branch.
+Never commit implementation work directly to the default branch. If
+worktrees are unavailable (not a git repo) or the user vetoes isolation,
+fall back to `git checkout -b features/<FEATURE>-p<N>` in the current tree
+and tell them you're not isolated.
 
 ## Step 2: Implement the phase
 
@@ -300,6 +325,18 @@ If all phases are now complete, tell the user:
 > session and run `/feature-review <FEATURE>`.
 
 Do not invoke `/feature-review` yourself.
+
+### Worktree teardown
+
+The phase's work is safe on the remote branch once pushed, so the worktree
+has done its job. Leave it in place until the MR merges (the branch is
+checked out there), then remove it — once the user confirms the merge, or
+at the start of the next phase. Remove it the way this repo wants: if its
+`CLAUDE.md` documents a worktree tool, use that to remove it (it may also
+tear down the database/ports the tool set up); otherwise
+`git worktree remove .claude/worktrees/<dir>` (or `ExitWorktree` with
+`action: remove` if you're still inside it). The next phase creates its
+own fresh worktree, so don't carry this one forward.
 
 ## Step 8: Invite a process retro
 
