@@ -275,6 +275,12 @@ review found nothing to apply, skip to Step 10.
 instructions inline in this conversation, treating the Step 8 triage as
 the feedback to address (there is no synthesis doc to read).
 
+You're on `main` here, so feature-iterate's Step 0.5 will isolate the
+fixes in a worktree by default — that's intended; it keeps the applied
+changes off the shared tree. The fixes then land via an iterate MR, so
+"mark shipped" (Step 10) waits for that MR to merge, exactly as
+feature-iterate's wrap-up describes.
+
 ## Step 10: Mark shipped
 
 When the review cycle is complete with no outstanding items — either
