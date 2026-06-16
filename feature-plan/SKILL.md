@@ -103,6 +103,14 @@ A good implementation plan contains:
   - Key code snippets (interfaces, data structures, function signatures)
   - What tests are needed
   - MR chain (each phase = one MR, invoked separately)
+- **Verification**: machine-runnable acceptance commands (exact,
+  copy-pasteable) that prove the feature works — the implementing agent
+  runs them, and `feature-review` Step 6 re-runs them against main.
+  **Confirm each command actually runs what you intend before writing it
+  in** — e.g. that the named target is the full suite, not a fast subset
+  (a project may have a `make check` that runs only a handful of tests
+  while `make test` is the real suite). Prefer commands that fail loudly
+  when the feature is absent over prose like "run the tests".
 - **Checklist**: a flat checklist of all steps across all phases at
   the bottom of the document. The implementing agent checks items off
   as it works.

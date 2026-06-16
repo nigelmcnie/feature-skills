@@ -452,6 +452,7 @@
     <li><a href="#file-structure">File structure</a></li>
     <li><a href="#phase-1">Phase 1 — Title</a></li>
     <li><a href="#phase-2">Phase 2 — Title</a></li>
+    <li><a href="#verification">Verification</a></li>
     <li><a href="#qc">QC</a></li>
     <li><a href="#checklist">Checklist</a></li>
   </ul>
@@ -510,6 +511,23 @@
   <ul><li>...</li></ul>
   <h3>MR chain</h3>
   <p>One MR titled <code>feat(&lt;FEATURE&gt;): phase 1</code>.</p>
+</section>
+
+<section id="verification">
+  <h2>Verification</h2>
+  <!--
+    Machine-runnable acceptance commands the implementing agent runs to
+    prove the feature works, and that feature-review re-runs against main.
+    Use EXACT, copy-pasteable commands — and confirm each one actually
+    runs what you intend (e.g. that `make check` is the full suite, not a
+    fast subset). Prefer commands that fail loudly when the feature is
+    absent over prose like "run the tests".
+  -->
+  <ul>
+    <li>Full test suite: <code>make test</code> (expect N passed).</li>
+    <li>Browser smoke: <code>make smoke</code> (expect M passed).</li>
+    <li>Any feature-specific empirical check (end-to-end CLI invocation, build artefact inspection, etc.).</li>
+  </ul>
 </section>
 
 <section id="qc">
