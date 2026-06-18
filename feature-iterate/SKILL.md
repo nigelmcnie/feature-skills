@@ -123,6 +123,16 @@ Interpretation (same whether from HTTP or clipboard):
 - Items in `routine_flags` are routine items the user wants to
   discuss — their comment explains why. Treat as needing your call.
 
+**Coverage check before trusting blanks.** A blank = "shown and agreed";
+a *missing* response key = "never rendered", which must not read as
+agreement (a webapp parse/render regression can silently drop items). The
+submission carries a key for every decision-tier item the webapp rendered
+and omits any it didn't, so confirm every decision-tier item in the
+synthesis HTML — the `<article class="item" data-item="...">` entries in
+the `tier-needs-input` and `tier-feedback` sections — has a key in
+`responses`. If any are missing, re-surface those specific items rather
+than treating them as agreed.
+
 The user may also have left click-to-comment annotations on
 `requirements.html` or `plan.html`. Fetch those from the webapp — using
 the spine doc paths, not the feedback doc path:

@@ -490,6 +490,17 @@ the server was unavailable:
 - Items in `routine_flags` are routine items the user wants to discuss
   — their comment explains why. Treat as needing your call.
 
+**Coverage check before trusting blanks.** A blank response means "shown
+and agreed" — but a *missing* response key means "never rendered", which
+must not be read as agreement (a webapp parse/render regression can drop
+items the human never saw). The submission carries a key for every
+decision-tier item the webapp rendered, even unanswered ones, and omits
+items it didn't. So before integrating: confirm every top-tier and
+middle-tier item number you authored appears as a key in `responses`. If
+any are missing, the human never saw them — re-surface those specific
+items (in chat, or by re-checking the synthesis doc renders them all)
+and resolve them explicitly rather than silently treating them as agreed.
+
 **Click-to-comment annotations** (from `requirements.html`): fetch from
 the webapp immediately after the synthesis response arrives:
 
