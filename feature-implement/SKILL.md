@@ -98,6 +98,14 @@ that name.
     `<FEATURE>-p<N>`. It branches fresh from `origin/<default-branch>`
     (the `worktree.baseRef` default), so you start from the latest main —
     including prior merged phases — with no separate pull.
+
+    **Exception — no remote** (`git remote -v` is empty): `EnterWorktree`'s
+    default `fresh` mode requires an origin and will fail. Instead, create the
+    worktree manually then enter it by path:
+    ```bash
+    git worktree add .claude/worktrees/<FEATURE>-p<N> -b features/<FEATURE>-p<N>
+    # then call EnterWorktree with path=.claude/worktrees/<FEATURE>-p<N>
+    ```
   Then make sure you end up on a branch named `features/<FEATURE>-p<N>`,
   renaming if the tool or standard flow named it otherwise:
   ```bash
@@ -188,8 +196,21 @@ inline in this conversation.
 
 ## Step 5: Commit and create MR
 
-Commit with a clear message referencing the feature and phase. Push
-the branch. Create an MR for this phase.
+**No-remote repos** (`git remote -v` is empty): commit, then merge directly
+into the default branch and remove the worktree — no push, no MR, no CI.
+Skip to Step 7.
+
+```bash
+# from inside the worktree
+git commit -m "feat(<FEATURE>): ..."
+# exit worktree (keep), then from default branch:
+git merge features/<FEATURE>-p<N> --no-edit
+git worktree remove .claude/worktrees/<FEATURE>-p<N>
+git branch -d features/<FEATURE>-p<N>
+```
+
+**With a remote**: commit with a clear message referencing the feature and
+phase. Push the branch. Create an MR for this phase.
 
 Note the source branch (`features/<FEATURE>-p<N>`) and the MR URL.
 You'll watch the pipeline next.
@@ -335,8 +356,10 @@ at the start of the next phase. Remove it the way this repo wants: if its
 `CLAUDE.md` documents a worktree tool, use that to remove it (it may also
 tear down the database/ports the tool set up); otherwise
 `git worktree remove .claude/worktrees/<dir>` (or `ExitWorktree` with
-`action: remove` if you're still inside it). The next phase creates its
-own fresh worktree, so don't carry this one forward.
+`action: remove, discard_changes: true` if you're still inside it — the
+branch always has commits from the merged phase, so `discard_changes` is
+required). The next phase creates its own fresh worktree, so don't carry
+this one forward.
 
 ## Step 8: Invite a process retro
 
