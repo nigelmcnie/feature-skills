@@ -70,11 +70,19 @@ should only run after everything has landed.
 
 ## Step 4: Establish the review baseline
 
-Find the earliest commit on main that touched the feature's docs
-directory, and use its parent as the baseline:
+Anchor the baseline on the **first phase commit**, not the earliest commit
+that touched the feature's docs. A feature's context/requirements are often
+captured many commits — and several other features — before implementation
+starts, so the docs directory's first commit can sit far behind the actual
+work and sweep all the intervening history into the review range. Find the
+earliest implementation commit for this feature and use its parent:
 
 ```bash
-EARLIEST=$(git log --reverse --diff-filter=A --format=%H -- "docs/features/<FEATURE>/" | head -1)
+# Earliest phase commit (the feat message survives squash/rebase and merge styles):
+EARLIEST=$(git log main --reverse --format=%H --grep "feat(<FEATURE>)" | head -1)
+# Fall back to the earliest phase-branch merge if no feat message is on main:
+[ -z "$EARLIEST" ] && EARLIEST=$(git log main --reverse --format=%H --merges \
+    --grep "<FEATURE>-p" | head -1)
 BASELINE=$(git rev-parse "$EARLIEST^")
 ```
 
@@ -89,11 +97,10 @@ git log $BASELINE..main --oneline
 The range may include unrelated work that landed in parallel — that's
 fine. The reviewer will be told to focus on feature-relevant changes.
 
-If `docs/features/<FEATURE>/` doesn't exist in the repo (the project's
-`.feature-workflow.toml` has all `[export]` keys set to `"none"`, so
-nothing was exported here), the `git log` lookup returns empty. In
-that case, ask the user for a baseline — typically the commit just
-before the first phase MR for this feature landed on main.
+If both lookups come back empty (an unusual phase-commit message, a purely
+local feature, or weird platform state), ask the user for a baseline —
+typically the commit just before the first phase MR for this feature landed
+on main.
 
 ## Step 5: Fetch MR descriptions
 
