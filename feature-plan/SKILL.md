@@ -111,6 +111,9 @@ A good implementation plan contains:
   (a project may have a `make check` that runs only a handful of tests
   while `make test` is the real suite). Prefer commands that fail loudly
   when the feature is absent over prose like "run the tests".
+  If a verification step requires live credentials, interactive auth, or
+  an external service, note it inline: `(Note: requires live credentials
+  — perform manually if agent cannot obtain them)`.
 - **Checklist**: a flat checklist of all steps across all phases at
   the bottom of the document. The implementing agent checks items off
   as it works.

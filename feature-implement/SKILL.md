@@ -170,6 +170,12 @@ writes the implementation, infers from the code that the verification
 should pass, and ticks the box without confirming. The reviewer (or
 the next session) then trusts the box and ships a broken state.
 
+If a "Verify" step requires live system access you cannot obtain
+(credentials, interactive MFA, external service), do not skip it silently.
+Note the constraint in the MR description, provide a structural equivalent
+where possible (a test that proves the same guarantee), and flag it as
+requiring manual verification post-merge.
+
 ## Step 3: Handle deviations
 
 If implementation reveals the plan needs to change:
