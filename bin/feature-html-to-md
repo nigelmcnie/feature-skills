@@ -6,24 +6,35 @@
 # ]
 # ///
 """
-feature-html-to-md — Convert a feature-skill HTML doc to markdown.
+feature-html-to-md — Convert or export a feature-skill document to markdown.
 
-Reads `<meta name="feature-doc-type" content="X">` from the source HTML
-to dispatch to a per-type converter (context, requirements, plan,
-features). Strips UI chrome (TOC, comment widgets, comments rail,
-sticky footer, scripts, styles), drops checkboxes from plan checklists,
-and emits markdown to the target path.
+Three modes:
 
-Markdown produced is a read-only snapshot. HTML is canonical.
-
-Usage:
+  File mode (original):
     feature-html-to-md <source.html> <target.md>
+
+  API-sourced doc export:
+    feature-html-to-md [--webapp URL] <project>/<feature>/<doc_type>/<instance> <target.md>
+    Fetches the document from the webapp API and writes markdown via the
+    per-type converters (context/requirements/plan/features).
+
+  Tracker merge:
+    feature-html-to-md [--webapp URL] --merge-features <project> <features.md>
+    Fetches the feature list from the API and merges table rows into the
+    existing features.md, preserving row order and the 'Suggested order'
+    prose section.
+
+In all modes, HTML is canonical; markdown is a read-only snapshot.
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -364,40 +375,352 @@ def strip_chrome(soup) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# API helpers
 # ---------------------------------------------------------------------------
 
-def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print("usage: feature-html-to-md <source.html> <target.md>",
-              file=sys.stderr)
-        return 2
-    src = Path(argv[1])
-    dst = Path(argv[2])
+def _api_get(url: str) -> dict:
+    """GET JSON from the webapp API. Raises RuntimeError on failure."""
+    try:
+        with urllib.request.urlopen(url) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP {e.code} from {url}: {e.reason}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Cannot reach {url}: {e.reason}") from e
+
+
+# ---------------------------------------------------------------------------
+# Tracker merge
+# ---------------------------------------------------------------------------
+
+_STATUS_SECTIONS = {"In Progress", "Available", "Done"}
+_SECTION_TO_STATUS = {
+    "In Progress": "in_progress",
+    "Available": "available",
+    "Done": "done",
+}
+_STATUS_TO_SECTION = {v: k for k, v in _SECTION_TO_STATUS.items()}
+
+_TABLE_ROW_RE = re.compile(r"^\|.+\|$")
+_LINK_IN_CELL_RE = re.compile(r"^\[([^\]]+)\]\(([^)]+)\)$")
+
+
+def _parse_table_rows(lines: list[str]) -> list[dict]:
+    """Parse markdown table rows into dicts: {slug, link, cells}."""
+    rows = []
+    header_seen = False
+    for line in lines:
+        stripped = line.rstrip()
+        if not _TABLE_ROW_RE.match(stripped):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if not cells:
+            continue
+        # Detect separator row (cells contain only -, :, space)
+        if all(set(c.strip()).issubset({"-", ":", " "}) for c in cells):
+            continue
+        first = cells[0].strip()
+        # Detect header row
+        if first.lower() == "feature":
+            header_seen = True
+            continue
+        if not header_seen or not first:
+            continue
+        m = _LINK_IN_CELL_RE.match(first)
+        slug, link = (m.group(1), m.group(2)) if m else (first, None)
+        rows.append({"slug": slug, "link": link, "cells": cells})
+    return rows
+
+
+def _link_cell(slug: str, existing_link: str | None) -> str:
+    """Return '[slug](link)' if link is known or discoverable, else just slug."""
+    if existing_link:
+        return f"[{slug}]({existing_link})"
+    for suffix in ("context.md", "requirements.md", "plan.md"):
+        p = Path(f"docs/features/{slug}/{suffix}")
+        if p.exists():
+            return f"[{slug}]({p})"
+    return slug
+
+
+def _split_around_table(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Return (pre-table lines, post-table lines), excluding the table rows."""
+    first_tbl = last_tbl = None
+    for i, line in enumerate(lines):
+        if _TABLE_ROW_RE.match(line.rstrip()):
+            if first_tbl is None:
+                first_tbl = i
+            last_tbl = i
+    if first_tbl is None:
+        return list(lines), []
+    return list(lines[:first_tbl]), list(lines[last_tbl + 1:])
+
+
+def _format_row(section: str, link_cell: str, db_feat: dict,
+                existing_row: dict | None) -> str:
+    """Format one markdown table row for the given section."""
+    if section == "In Progress":
+        owner = (db_feat.get("owner") or "").replace("|", "\\|")
+        notes = (db_feat.get("notes") or "").replace("|", "\\|")
+        return f"| {link_cell} | {owner} | {notes} |"
+    if section == "Available":
+        notes = (db_feat.get("notes") or "").replace("|", "\\|")
+        return f"| {link_cell} | {notes} |"
+    # Done — preserve the existing outcome text; use 'Shipped.' for new rows
+    if (existing_row
+            and existing_row.get("in_section") == "Done"
+            and len(existing_row.get("cells", [])) > 1):
+        outcome = existing_row["cells"][1].strip()
+    else:
+        outcome = "Shipped."
+    return f"| {link_cell} | {outcome} |"
+
+
+def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
+    """Merge DB feature state into existing features.md content."""
+    # Split into blocks by ## headings.
+    blocks: list[dict] = []
+    current: dict = {"heading": None, "lines": []}
+    for line in content.splitlines(keepends=True):
+        if line.startswith("## "):
+            blocks.append(current)
+            current = {"heading": line[3:].rstrip(), "lines": [line]}
+        else:
+            current["lines"].append(line)
+    blocks.append(current)
+
+    # Build a lookup of every row across all table sections.
+    # Preserves the first occurrence (in document order) if a slug appears twice.
+    all_rows: dict[str, dict] = {}
+    for blk in blocks:
+        h = blk["heading"]
+        if h not in _STATUS_SECTIONS:
+            continue
+        for row in _parse_table_rows(blk["lines"]):
+            if row["slug"] not in all_rows:
+                all_rows[row["slug"]] = {
+                    "link": row["link"],
+                    "cells": row["cells"],
+                    "in_section": h,
+                }
+
+    placed: set[str] = set()
+    result: list[str] = []
+
+    for blk in blocks:
+        h = blk["heading"]
+        if h not in _STATUS_SECTIONS:
+            result.append("".join(blk["lines"]))
+            continue
+
+        target_status = _SECTION_TO_STATUS[h]
+        if h == "In Progress":
+            tbl_header = ["| Feature | Owner | Notes |\n", "|---|---|---|\n"]
+        elif h == "Available":
+            tbl_header = ["| Feature | Notes |\n", "|---|---|\n"]
+        else:
+            tbl_header = ["| Feature | Outcome |\n", "|---|---|\n"]
+
+        rows: list[str] = []
+
+        # 1. Existing rows that belong in this section
+        for slug, rd in all_rows.items():
+            if rd["in_section"] != h:
+                continue
+            db_feat = db_features.get(slug)
+            if db_feat is None:
+                # Not in DB — preserve as-is
+                rows.append("| " + " | ".join(rd["cells"]) + " |")
+                placed.add(slug)
+                continue
+            if db_feat["status"] != target_status:
+                continue  # moving to another section; placed there
+            lc = _link_cell(slug, rd["link"])
+            rows.append(_format_row(h, lc, db_feat, rd))
+            placed.add(slug)
+
+        # 2. Rows from other sections that moved here
+        for slug, rd in all_rows.items():
+            if rd["in_section"] == h or slug in placed:
+                continue
+            db_feat = db_features.get(slug)
+            if db_feat is None or db_feat["status"] != target_status:
+                continue
+            lc = _link_cell(slug, rd["link"])
+            rows.append(_format_row(h, lc, db_feat, rd))
+            placed.add(slug)
+
+        # 3. New DB features that have no existing row anywhere
+        for slug, db_feat in db_features.items():
+            if slug in placed or slug in all_rows:
+                continue
+            if db_feat["status"] != target_status:
+                continue
+            lc = _link_cell(slug, None)
+            rows.append(_format_row(h, lc, db_feat, None))
+            placed.add(slug)
+
+        # Reconstruct the section: ## heading + pre-table prose + table + post
+        body_lines = blk["lines"][1:]  # skip the ## heading line itself
+        pre, post = _split_around_table(body_lines)
+
+        result.append(blk["lines"][0])
+        result.extend(pre)
+        result.extend(tbl_header)
+        for row in rows:
+            result.append(row + "\n")
+        result.extend(post)
+
+    return "".join(result)
+
+
+# ---------------------------------------------------------------------------
+# Mode implementations
+# ---------------------------------------------------------------------------
+
+def _convert_file(src: Path, dst: Path) -> int:
+    """Convert a local HTML file to markdown (original file-based mode)."""
     if not src.is_file():
         print(f"error: source not found: {src}", file=sys.stderr)
         return 1
-
     soup = BeautifulSoup(src.read_text(encoding="utf-8"), "html.parser")
     meta = soup.find("meta", attrs={"name": "feature-doc-type"})
     if meta is None:
-        print(f"error: no <meta name='feature-doc-type'> in {src}",
-              file=sys.stderr)
+        print(f"error: no <meta name='feature-doc-type'> in {src}", file=sys.stderr)
         return 1
     doc_type = meta.get("content", "").strip()
     converter = CONVERTERS.get(doc_type)
     if converter is None:
-        print(f"error: unknown doc type {doc_type!r} "
-              f"(expected one of {sorted(CONVERTERS)})", file=sys.stderr)
+        print(
+            f"error: unknown doc type {doc_type!r} "
+            f"(expected one of {sorted(CONVERTERS)})",
+            file=sys.stderr,
+        )
         return 1
-
     strip_chrome(soup)
     markdown = converter(soup).rstrip() + "\n"
-
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(markdown, encoding="utf-8")
     print(f"wrote {dst} (type={doc_type})", file=sys.stderr)
     return 0
+
+
+def _export_from_api(webapp_url: str, logical_key: str, dst: Path) -> int:
+    """Fetch a document from the webapp API and write it as markdown."""
+    url = f"{webapp_url}/api/documents/{logical_key}"
+    try:
+        data = _api_get(url)
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    doc_type = data.get("doc_type", "")
+    shape = data.get("shape", "sections")
+
+    if shape == "opaque":
+        # The body field IS the full HTML document
+        soup = BeautifulSoup(data.get("body", ""), "html.parser")
+    else:
+        # Reconstruct a minimal HTML doc from the section bodies.
+        # Each body already contains its own <h2> heading (as authored).
+        sections = data.get("sections", [])
+        parts = logical_key.split("/")
+        feature = parts[1] if len(parts) >= 2 else ""
+        title = (
+            f"{feature} — {doc_type.capitalize()}"
+            if feature
+            else doc_type.capitalize()
+        )
+        section_html = "".join(
+            f'<section id="{s["key"]}">{s["body"]}</section>'
+            for s in sections
+        )
+        full_html = (
+            f"<!DOCTYPE html><html>"
+            f'<head><meta name="feature-doc-type" content="{doc_type}">'
+            f"<title>{title}</title></head>"
+            f"<body><h1>{title}</h1>"
+            f'<main class="document">{section_html}</main></body>'
+            f"</html>"
+        )
+        soup = BeautifulSoup(full_html, "html.parser")
+
+    converter = CONVERTERS.get(doc_type, convert_generic)
+    strip_chrome(soup)
+    markdown = converter(soup).rstrip() + "\n"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(markdown, encoding="utf-8")
+    print(f"wrote {dst} (type={doc_type}, source=api)", file=sys.stderr)
+    return 0
+
+
+def _merge_features(webapp_url: str, project: str, dst: Path) -> int:
+    """Merge current feature status from the webapp API into features.md."""
+    url = f"{webapp_url}/api/projects/{project}/features"
+    try:
+        data = _api_get(url)
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    db_features = {f["slug"]: f for f in data.get("features", [])}
+    existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
+    merged = _merge_features_md(existing, db_features)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(merged, encoding="utf-8")
+    print(f"wrote {dst} (merge-features, project={project})", file=sys.stderr)
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="feature-html-to-md")
+    p.add_argument(
+        "--webapp",
+        metavar="URL",
+        default="http://127.0.0.1:8800",
+        help="Webapp base URL for API-sourced export (default: http://127.0.0.1:8800)",
+    )
+    p.add_argument(
+        "--merge-features",
+        metavar="PROJECT",
+        help="Merge tracker rows from the API into <features.md> for PROJECT",
+    )
+    p.add_argument("positionals", nargs="*", metavar="ARG")
+    opts = p.parse_args(argv[1:])
+
+    if opts.merge_features:
+        if len(opts.positionals) != 1:
+            print(
+                "usage: feature-html-to-md [--webapp URL]"
+                " --merge-features PROJECT <features.md>",
+                file=sys.stderr,
+            )
+            return 2
+        return _merge_features(
+            opts.webapp, opts.merge_features, Path(opts.positionals[0])
+        )
+
+    if len(opts.positionals) != 2:
+        print(
+            "usage: feature-html-to-md [--webapp URL]"
+            " <source.html|logical-key> <target.md>",
+            file=sys.stderr,
+        )
+        return 2
+
+    src_str, target_str = opts.positionals
+    dst = Path(target_str)
+    src_path = Path(src_str)
+
+    if src_path.is_file():
+        return _convert_file(src_path, dst)
+    else:
+        # Treat src_str as a logical key: project/feature/doc_type/instance
+        return _export_from_api(opts.webapp, src_str, dst)
 
 
 if __name__ == "__main__":
