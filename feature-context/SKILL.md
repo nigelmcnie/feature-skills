@@ -172,89 +172,26 @@ The context document is immediately in the DB and appears in the inbox
 at `http://127.0.0.1:8800`. It is viewable at the `/doc/N` URL from
 the PUT response.
 
-## Step 6: Update the features tracker
+## Step 6: Register in the tracker
 
-If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
-declined setup in Step 2 — skip this entire step.
-
-Otherwise, the canonical tracker is
-`~/.claude/feature-docs/<PROJECT>/features.html`. The repo's
-`features.md` (if any) is a script-generated snapshot when
-`.feature-workflow.toml` opts in.
-
-### Ensure features.html exists in the dev-store
-
-- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
-  it.
-- **Otherwise, if `features.md` exists at the repo root**: migrate.
-  Use `~/.claude/skills/feature/features-template.html` as the basis.
-  Set the `<title>`, `<h1>`, and subtitle for the project. Render the
-  existing markdown tables into the template's sections: `In
-  Progress` rows → `<section id="in-progress">` tbody; `Available` →
-  `<section id="available">`; `Done` (if present) →
-  `<section id="done">`; `Suggested order` (if present) → keep as
-  prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`. Rewrite
-  feature-doc hrefs from the legacy repo-relative form
-  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
-  form `<feature>/<artifact>.html` (e.g.
-  `docs/features/rule-ir/context.md` →
-  `rule-ir/context.html`), so the canonical tracker has working
-  click-through. Leave hrefs that don't match this pattern alone.
-  Drop any `<tr class="empty">` placeholders for tbodies that
-  now have real rows. Write the file to
-  `~/.claude/feature-docs/<PROJECT>/features.html`.
-- **Otherwise, if neither exists**: skip this entire step (Step 2's
-  setup offer was probably skipped or accepted-but-toml-only; this
-  project doesn't have a tracker).
-
-### Add the row to Available
-
-Append a `<tr>` to the `Available` section's `<tbody>` with two cells:
-
-- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
-- `<td class="feature-notes">…one-line note about what this is…</td>`
-
-Do not move anything to In Progress — this feature is being captured
-for later, not started now. If the `Available` tbody had a
-`<tr class="empty">` placeholder, remove it now.
-
-### Export to the repo (if configured)
-
-Check `.feature-workflow.toml`'s `[export].features` key. If
-`markdown`:
+Call the capture API to register this feature as Available:
 
 ```bash
-feature-html-to-md \
-    ~/.claude/feature-docs/<PROJECT>/features.html \
-    features.md
+curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/capture" \
+  -H 'Content-Type: application/json' \
+  -d '{"notes": "…one-line note about what this is…"}'
 ```
 
-If `html`:
+A 200 response means the feature was registered. A 409 means the slug
+already exists — treat as already-captured and continue.
 
-```bash
-cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
-```
-
-If `none` or absent, skip. The tracker state is local-only in that
-case.
-
-Remember the export-target path; you'll commit it in Step 8.
+If the webapp is unreachable, skip silently — the context doc is
+already in the DB from Step 4.
 
 ## Step 7: Commit and push
 
-The context document is stored in the DB (written via the API in Step
-4) — there is no file to commit for the context itself.
-
-If the features tracker was exported to the repo in Step 6 (via
-`feature-html-to-md` or `cp`), commit only that file:
-
-```
-docs: capture <FEATURE> context
-```
-
-If nothing was exported in Step 6, skip the commit — there is nothing
-to commit.
+The context document is stored in the DB and the tracker row is in the
+webapp — there is nothing to commit. Skip.
 
 ## Step 8: Done
 

@@ -315,121 +315,20 @@ the initial review had no findings, or the user signals they are
 satisfied after iterations ("looks good", "all done", "ship it",
 "nothing else", or similar):
 
-The canonical tracker is
-`~/.claude/feature-docs/<PROJECT>/features.html`, where `<PROJECT>` is
-`basename $(git rev-parse --show-toplevel)`. The repo's `features.md`
-(if any) is a script-generated snapshot when `.feature-workflow.toml`
-opts in.
-
-### Workflow setup (first run)
-
-If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
-previously declined workflow setup — skip the rest of this step
-("Mark shipped" is a no-op without a tracker).
-
-If **none** of `~/.claude/feature-docs/<PROJECT>/features.html`,
-`features.md` at the repo root, or `.feature-workflow.toml` at the
-repo root exists, this project hasn't been set up. Offer once:
-
-> This project doesn't have the feature workflow set up yet. Want me
-> to scaffold it?
->
-> 1. **features.html tracker** at
->    `~/.claude/feature-docs/<PROJECT>/features.html`.
-> 2. **`.feature-workflow.toml`** at the repo root with all four
->    `[export]` keys set to `"markdown"` — feature docs and tracker
->    exported to the repo.
->
-> Say no and I'll skip the mark-shipped step. To change the choice
-> later, delete `~/.claude/feature-docs/<PROJECT>/.no-tracker`.
-
-- **Accept**: create features.html (from
-  `~/.claude/skills/feature/features-template.html`, blank tables)
-  and `.feature-workflow.toml` (all four `[export]` keys =
-  `"markdown"`). Continue.
-- **Decline**: `mkdir -p ~/.claude/feature-docs/$PROJECT &&
-  touch ~/.claude/feature-docs/$PROJECT/.no-tracker`, then skip the
-  rest of this step.
-
-### Ensure features.html exists in the dev-store
-
-- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
-  it.
-- **Otherwise, if `features.md` exists at the repo root**: migrate.
-  Use `~/.claude/skills/feature/features-template.html` as the basis.
-  Set the `<title>`, `<h1>`, and subtitle for the project. Render the
-  existing markdown tables into the template's sections: `In
-  Progress` rows → `<section id="in-progress">` tbody; `Available` →
-  `<section id="available">`; `Done` (if present) →
-  `<section id="done">`; `Suggested order` (if present) → keep as
-  prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`. Rewrite
-  feature-doc hrefs from the legacy repo-relative form
-  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
-  form `<feature>/<artifact>.html` (e.g.
-  `docs/features/rule-ir/context.md` →
-  `rule-ir/context.html`), so the canonical tracker has working
-  click-through. Leave hrefs that don't match this pattern alone.
-  Drop any `<tr class="empty">` placeholders for tbodies that
-  now have real rows. Write the file to
-  `~/.claude/feature-docs/<PROJECT>/features.html`.
-- **Otherwise, if `.feature-workflow.toml` exists but no tracker**:
-  scaffold a fresh `features.html` from
-  `~/.claude/skills/feature/features-template.html` (blank tables).
-
-### Move the feature to Done
-
-If the feature has a row in the `In Progress` section, remove it and
-append an equivalent row to the `Done` section's `<tbody>`. The Done
-section is optional in the template — if the section is absent,
-clone the structure from the template (`<section id="done">` with a
-two-column table: Feature, Outcome) and insert it after the
-`Available` section.
-
-Each Done row has two cells:
-
-- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
-- `<td class="feature-outcome"><strong>Shipped.</strong> …short
-  summary of what landed, drawn from the implementation diff and MR
-  descriptions…</td>`
-
-Keep the outcome cell to one or two sentences capturing the
-substantive shape of what shipped — not a play-by-play of the
-review. The current convention in established trackers (kea) is to
-lead with "Shipped." in bold so the status reads at a glance.
-
-If the feature was never claimed (no row in any section), skip
-silently.
-
-### Export to the repo (if configured) and commit
-
-Check `.feature-workflow.toml`'s `[export].features` key. If
-`markdown`:
+Call the ship API to move this feature to Done:
 
 ```bash
-feature-html-to-md \
-    ~/.claude/feature-docs/<PROJECT>/features.html \
-    features.md
+curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/ship" \
+  -H 'Content-Type: application/json' \
+  -d '{"outcome": "Shipped. …one or two sentence summary of what landed…"}'
 ```
 
-If `html`:
+A 200 response means the feature is marked Done. If the webapp is
+unreachable, skip silently.
 
-```bash
-cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
-```
-
-If `none` or absent, skip the export and skip the commit.
-
-If something was exported, commit the change directly to the current
-branch (we're on main; see Step 1) with the message
-`docs: mark <FEATURE> as shipped` and push.
-
-### Archive any leftover synthesis docs
-
-The inline-triage flow (Step 8) writes no synthesis doc, so there is
-normally nothing to archive. But a doc may exist from an older
-standalone review round — sweep any leftover into the archive
-defensively (the `|| true` makes it a no-op when there's none):
+Archive any leftover synthesis docs from older standalone review rounds
+(the inline-triage flow writes no synthesis doc, so this is normally a
+no-op):
 
 ```bash
 mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
