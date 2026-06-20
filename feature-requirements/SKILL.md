@@ -64,124 +64,22 @@ Once FEATURE is confirmed, tell the user:
 
 > → Run `/rename <FEATURE>` to name this session for the feature.
 
-## Step 2: Claim the feature (if a tracker exists)
+## Step 2: Claim the feature
 
-The canonical tracker is
-`~/.claude/feature-docs/<PROJECT>/features.html`. The repo's
-`features.md` (if any) is a script-generated snapshot when
-`.feature-workflow.toml` opts in.
+Ask the user for their name if not already known — `claim` requires a
+non-empty owner.
 
-### Workflow setup (first run)
-
-If `~/.claude/feature-docs/<PROJECT>/.no-tracker` exists, the user
-previously declined workflow setup — skip the rest of this step.
-The feature is claimed dev-store-only (no commit, no broadcast).
-
-If **none** of `~/.claude/feature-docs/<PROJECT>/features.html`,
-`features.md` at the repo root, or `.feature-workflow.toml` at the
-repo root exists, this project hasn't been set up yet. Offer once:
-
-> This project doesn't have the feature workflow set up yet. Want me
-> to scaffold it?
->
-> 1. **features.html tracker** at
->    `~/.claude/feature-docs/<PROJECT>/features.html` — canonical,
->    local-only.
-> 2. **`.feature-workflow.toml`** at the repo root with all four
->    `[export]` keys set to `"markdown"` — feature docs and the
->    tracker get exported to `docs/features/<feature>/` and
->    `features.md`, committed alongside code.
->
-> Say no and I'll just write to the dev-store (private to your
-> machine, nothing in the repo). To change the choice later, delete
-> `~/.claude/feature-docs/<PROJECT>/.no-tracker`.
-
-- **Accept**: create `~/.claude/feature-docs/<PROJECT>/features.html`
-  from `~/.claude/skills/feature/features-template.html` (set
-  `<title>`, `<h1>`, subtitle; leave tables empty). Write
-  `.feature-workflow.toml` at the repo root with:
-
-  ```toml
-  [export]
-  context = "markdown"
-  requirements = "markdown"
-  plan = "markdown"
-  features = "markdown"
-  ```
-
-- **Decline**: `mkdir -p ~/.claude/feature-docs/$PROJECT &&
-  touch ~/.claude/feature-docs/$PROJECT/.no-tracker`, then skip the
-  rest of this step.
-
-### Ensure features.html exists in the dev-store
-
-- **If `~/.claude/feature-docs/<PROJECT>/features.html` exists**: use
-  it.
-- **Otherwise, if `features.md` exists at the repo root**: migrate.
-  Use `~/.claude/skills/feature/features-template.html` as the basis.
-  Set the `<title>`, `<h1>`, and subtitle for the project. Render the
-  existing markdown tables into the template's sections: `In
-  Progress` rows → `<section id="in-progress">` tbody; `Available` →
-  `<section id="available">`; `Done` (if present) →
-  `<section id="done">`; `Suggested order` (if present) → keep as
-  prose/list in `<section id="suggested-order">`. Convert each
-  `[text](path)` link to `<a href="path">text</a>`. Rewrite
-  feature-doc hrefs from the legacy repo-relative form
-  `docs/features/<feature>/<artifact>.md` to the dev-store-sibling
-  form `<feature>/<artifact>.html` (e.g.
-  `docs/features/rule-ir/context.md` →
-  `rule-ir/context.html`), so the canonical tracker has working
-  click-through. Leave hrefs that don't match this pattern alone.
-  Drop any `<tr class="empty">` placeholders for tbodies that
-  now have real rows. Write the file to
-  `~/.claude/feature-docs/<PROJECT>/features.html`.
-- **Otherwise, if `.feature-workflow.toml` exists but no tracker**:
-  scaffold a fresh `features.html` from
-  `~/.claude/skills/feature/features-template.html` (set `<title>`,
-  `<h1>`, subtitle; leave tables empty).
-
-### Move the feature into In Progress
-
-Ask the user for their name if you don't know it.
-
-If the feature already has an `Available` row, remove it and add an
-equivalent `In Progress` row (with three cells: Feature, Owner,
-Notes — Owner gets the user's name).
-
-If the feature isn't in any tracker section yet (claimed cold, no
-prior context capture), append a new `<tr>` to the `In Progress`
-section's `<tbody>` with:
-
-- `<td class="feature-name"><a href="<FEATURE>/context.html">FEATURE</a></td>`
-- `<td class="feature-owner">…user's name…</td>`
-- `<td class="feature-notes">…one-line note about scope or status…</td>`
-
-If the `In Progress` tbody had a `<tr class="empty">` placeholder,
-remove it now.
-
-### Export to the repo (if configured) and commit
-
-Check `.feature-workflow.toml`'s `[export].features` key. If
-`markdown`:
+Call the claim API to move this feature from Available to In Progress:
 
 ```bash
-feature-html-to-md \
-    ~/.claude/feature-docs/<PROJECT>/features.html \
-    features.md
+curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/claim" \
+  -H 'Content-Type: application/json' \
+  -d '{"owner": "<user name>"}'
 ```
 
-If `html`:
-
-```bash
-cp ~/.claude/feature-docs/<PROJECT>/features.html features.html
-```
-
-If `none` or absent, skip the export and skip the commit — the claim
-is local-only.
-
-If something was exported, stage and commit only that file with the
-message `Claim <FEATURE> in features.md`, then push — so others can
-see it's being worked on.
+A 200 response means the feature is now In Progress. If the webapp is
+unreachable or the feature was never captured (404), skip silently —
+the claim is best-effort.
 
 ## Step 3: Read context
 
