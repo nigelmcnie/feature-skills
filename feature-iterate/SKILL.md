@@ -85,23 +85,18 @@ if both exist for the same N).
 
 ### HTML synthesis doc (canonical)
 
-The synthesis response was submitted via the webapp. Read it from the HTTP
-endpoint — the absolute path of the highest-numbered
-`review-feedback-<N>.html` in the dev-store is the key:
+The synthesis response was submitted via the webapp. Poll it via the
+document's logical key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/review-feedback-<N>.html"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/review-feedback/$N/synthesis"
 ```
 
 - `200 submitted=true` → parse `responses` and `routine_flags` from the
   JSON body.
 - `200 submitted=false` → the human hasn't submitted yet. Poll every 5 s;
   emit a "still waiting in the inbox…" line roughly every 60 s.
-- `404` → the doc isn't indexed yet — trigger a walk first:
-  ```bash
-  curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
-  ```
-  then retry the poll.
+- `404` → the doc doesn't exist — fall back to the clipboard path.
 
 **Fallback**: if the server is unreachable or the user gives up, ask them
 to click **Copy responses** in the synthesis doc and paste the JSON blob.

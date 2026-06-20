@@ -55,14 +55,19 @@ current session never holds the whole arc. Reconstruct it from the
 durable artifacts, then layer the lived friction of this session on top.
 
 Derive `PROJECT = basename "$(git rev-parse --show-toplevel)"` and take
-`FEATURE` from `$ARGUMENTS` (ask if absent). Then look at, under
-`~/.claude/feature-docs/$PROJECT/$FEATURE/`:
+`FEATURE` from `$ARGUMENTS` (ask if absent). Then look at:
 
-- `plan.html` — the planned phases. Compare against what actually
-  shipped.
-- `requirements.html` — including the "Review decisions" section.
-- `.feedback-archive/*.html` — the synthesis docs from
-  requirements/review rounds. Recurring themes across them are gold.
+- Plan: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`
+  from the webapp. Fall back to
+  `~/.claude/feature-docs/$PROJECT/$FEATURE/plan.html` if the API
+  returns 404. Compare against what actually shipped.
+- Requirements: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1`
+  from the webapp. Fall back to
+  `~/.claude/feature-docs/$PROJECT/$FEATURE/requirements.html` if the
+  API returns 404. Read the "Review decisions" section.
+- `.feedback-archive/*.html` under `~/.claude/feature-docs/$PROJECT/$FEATURE/` —
+  the synthesis docs from requirements/review rounds. Recurring themes
+  across them are gold.
 - `~/.claude/feature-docs/$PROJECT/features.html` — the tracker entry.
 - The project's prior open retro findings, if the webapp store is
   reachable — see **Recurrence capture** below. Read these before you

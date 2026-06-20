@@ -88,12 +88,14 @@ Proceed without a tracker. Do not raise the offer again.
 
 ## Step 3: Detect state
 
-Look at what exists for this feature. The canonical location is the
-dev-store; the repo's `docs/features/<FEATURE>/` is an exported
-snapshot (or absent if all `[export]` keys are `none`).
+Check what documents exist for this feature. The API is canonical; the
+dev-store and repo are legacy fallbacks.
 
 ```bash
 PROJECT=$(basename $(git rev-parse --show-toplevel))
+# Check the API first (canonical):
+curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/documents" 2>/dev/null
+# Fall back to file system if API unreachable:
 ls ~/.claude/feature-docs/$PROJECT/$FEATURE/ 2>/dev/null
 ls docs/features/$FEATURE/ 2>/dev/null
 ```
@@ -105,21 +107,39 @@ Owner cell. Otherwise fall back to `features.md` at the repo root.
 
 ## Step 4: Route
 
-Based on what exists, route to the appropriate sub-skill. Check the
-dev-store first (canonical); fall back to the repo for legacy
-features:
+Based on what exists, route to the appropriate sub-skill. Check the API
+listing from Step 3 first; fall back to the dev-store and repo for
+legacy features:
 
 | State | Sub-skill |
 |-------|-----------|
-| Neither `requirements.html` (dev-store) nor `requirements.md` (repo) | `feature-requirements` |
-| Has requirements, no `plan.html` (dev-store) or `plan.md` (repo) | `feature-plan` |
+| No requirements in API, dev-store, or repo | `feature-requirements` |
+| Has requirements, no plan in API, dev-store, or repo | `feature-plan` |
 | Has plan with unchecked checklist items | `feature-implement` |
 | All plan items checked, on a feature branch | `feature-review` |
 
+If the API returned a document listing, a `requirements` entry means
+requirements exist and a `plan` entry means a plan exists. If the API
+was unreachable or returned an error, fall back to file existence in the
+dev-store (`~/.claude/feature-docs/$PROJECT/$FEATURE/`) and repo
+(`docs/features/$FEATURE/`).
+
 To check for unchecked items:
 
-- **HTML plan**: count `<li data-checklist-item="phase-…">` elements
-  whose `<input>` lacks the `checked` attribute. A quick scan:
+- **API plan** (canonical): fetch the plan and inspect the checklist
+  section:
+
+  ```bash
+  PLAN_JSON=$(curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1")
+  CHECKLIST=$(echo "$PLAN_JSON" | python3 -c \
+    "import sys,json; secs=json.load(sys.stdin)['sections']; \
+     print(next((s['body'] for s in secs if s['key']=='checklist'), ''))")
+  echo "$CHECKLIST" | grep -oE \
+    'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' \
+    | grep -vc ' checked' || echo 0
+  ```
+
+- **HTML plan** (legacy — dev-store fallback):
 
   ```bash
   grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' \
