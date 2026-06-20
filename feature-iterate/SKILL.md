@@ -133,23 +133,24 @@ the `tier-needs-input` and `tier-feedback` sections — has a key in
 `responses`. If any are missing, re-surface those specific items rather
 than treating them as agreed.
 
-The user may also have left click-to-comment annotations on
-`requirements.html` or `plan.html`. Fetch those from the webapp — using
-the spine doc paths, not the feedback doc path:
+The user may also have left click-to-comment annotations on the
+requirements or plan docs. Fetch those from the webapp using the
+keyed endpoints:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
 ```
 
 For each doc with a non-empty `comments` array, fold the comments in as
 additional feedback. Then integrate the consumed ids:
 
 ```bash
-curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+curl -fsS -X POST \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
   -H 'Content-Type: application/json' \
-  -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids>]}'
-# repeat for plan.html if it also had comments
+  -d '{"ids": [<ids>]}'
+# repeat for plan/1/comments/integrate if it also had comments
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
@@ -184,35 +185,34 @@ make all the changes.
 
 ### Capture decisions
 
-After making changes, capture decisions into the requirements doc
-before archiving the synthesis doc.
+After making changes, capture decisions into the requirements doc.
 
-The canonical requirements doc is
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if it
-exists; otherwise the legacy `docs/features/<FEATURE>/requirements.md`.
-Append (or extend) a **Review decisions** section. In the HTML
-version, this is `<section id="review-decisions">`; in markdown, a
-`## Review decisions` heading.
+GET the current requirements content from the API:
 
-For each item:
+```bash
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
+```
+
+Append (or extend) the **review-decisions** section in the `sections`
+array. For each item:
 
 - User-annotated items: `**User:**` prefix, capture their decision.
 - Fixes: one line — what was wrong, what was done.
 - Declined items: one line — what was suggested, why it was skipped.
 - Skip trivial fixes (typos, formatting).
 
-Number each round sequentially.
-
-If the requirements doc was updated in HTML form, re-run the export
-when `.feature-workflow.toml`'s `[export].requirements` opts in:
+Number each round sequentially. Then PUT the updated sections back:
 
 ```bash
-feature-html-to-md \
-    ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
-    docs/features/<FEATURE>/requirements.md
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {…, "review-decisions": "…"}, "actor": "agent"}'
 ```
 
-(or `cp` for `html`). Skip if `none` or absent.
+For legacy features where requirements are still in the dev-store
+(`requirements.html`) or repo (`requirements.md`), edit those files
+in place using the same review-decisions format.
 
 ### Archive the synthesis doc
 
@@ -265,14 +265,9 @@ inline in this conversation.
 
 ## Step 3.5: Commit, push, and (if on a branch) create an MR
 
-Commit all changed files — implementation changes plus whichever
-requirements file ended up in the repo via the export step (if any) —
+Commit all changed files — implementation changes only (requirements
+updates go to the DB via the API and do not produce repo files) —
 with the message `feat(<FEATURE>): address review feedback` and push.
-
-If `.feature-workflow.toml`'s `[export].requirements` is `none` or
-absent, the requirements changes are local-only in the dev-store and
-nothing requirements-related gets committed. The implementation
-changes still commit.
 
 If you're on a `features/<FEATURE>-iterate-N` branch, create an MR
 after pushing. If you're on main (per the Step 0.5 choice), no MR is
@@ -283,19 +278,18 @@ needed — the commit has already landed.
 After making changes, spawn a reviewer subagent using the Agent tool with
 `run_in_background: true`. Tell the user the re-reviewer is running.
 
-Prompt for the re-reviewer (substitute dev-store paths if the HTML
-docs exist, otherwise legacy markdown paths):
+Prompt for the re-reviewer:
 
 > You are reviewing an implementation after a round of iteration.
 > Read the full diff with `git diff main`.
-> Read the requirements at
-> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
-> (fall back to `docs/features/<FEATURE>/requirements.md` if the HTML
-> doesn't exist).
-> Read the plan at
-> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`
-> (fall back to `docs/features/<FEATURE>/plan.md` if the HTML doesn't
-> exist).
+> Fetch the requirements from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1`
+> (fall back to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
+> or `docs/features/<FEATURE>/requirements.md` if the API returns 404).
+> Fetch the plan from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`
+> (fall back to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`
+> or `docs/features/<FEATURE>/plan.md` if the API returns 404).
 > Read `CLAUDE.md`.
 >
 > Check whether the previous review feedback has been addressed, and
@@ -336,11 +330,9 @@ Present the triage in chat — do not write a synthesis document. Format:
 Wait for response. Apply the "Will apply" items plus the resolved questions.
 
 If any "Need your call" answers reveal substantive decisions,
-capture them in the **Review decisions** section of
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
-(legacy: `docs/features/<FEATURE>/requirements.md`). Same format as
-Step 2. Re-export if `.feature-workflow.toml` opts in for
-requirements.
+capture them in the **review-decisions** section of the requirements
+doc via the API (GET + update + PUT, same format as Step 2). For
+legacy features with file-based requirements, edit the file directly.
 
 Summarise what changed, what was declined and why, and whether all
 quality checks pass.

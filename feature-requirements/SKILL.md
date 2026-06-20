@@ -10,11 +10,12 @@ argument-hint: "[feature-name]"
 
 You are starting the requirements phase for a feature.
 
-The canonical requirements doc is HTML in the developer-scoped store at
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`, where
-`<PROJECT>` is `basename $(git rev-parse --show-toplevel)`. The repo
-gets an exported snapshot (markdown or HTML) when `.feature-workflow.toml`
-opts in.
+The requirements document and feedback synthesis docs are authored and
+stored in the webapp's DB via the logical-key API. Documents are
+addressed by `<PROJECT>/<FEATURE>/<doc_type>/<instance>`.
+`<PROJECT>` is `basename $(git rev-parse --show-toplevel)`.
+The repo gets an exported snapshot when `.feature-workflow.toml` opts in
+(Phase 7 repoints the export to source from the DB).
 
 ## Model check
 
@@ -190,11 +191,15 @@ Read the following:
 - Any spec or design doc the user has pointed to, including anything
   linked from `features.md` for this feature.
 - The captured context for this feature, in this order of preference:
-  1. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html` if it
-     exists — the new canonical location.
-  2. Otherwise `docs/features/<FEATURE>/context.md` if it exists — the
-     legacy location, still valid for features captured before the
-     HTML migration.
+  1. `GET /api/documents/$PROJECT/$FEATURE/context/1` from the webapp
+     — the canonical location when the context was authored via the API.
+     Parse the `sections` array from the JSON response to read the
+     content.
+  2. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/context.html` if it
+     exists — legacy location for features captured before the API
+     migration.
+  3. `docs/features/<FEATURE>/context.md` if it exists — older legacy
+     location.
 
   Treat the context as historical background, not as a spec to
   transcribe. The requirements document should be written fresh,
@@ -205,19 +210,37 @@ Read the following:
 
 ## Step 4: Draft
 
-Use `~/.claude/skills/feature/requirements-template.html` as the basis.
-Copy its CSS and JavaScript verbatim. Render the requirements into the
-template's structure.
+**1. Fetch the manifest** to confirm the section keys for requirements:
 
-Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`.
-Create parent dirs with `mkdir -p` if needed.
+```bash
+curl -fsS http://127.0.0.1:8800/api/manifests/requirements
+```
 
-Update in the template:
+Use the returned section keys exactly.
 
-- `<title>`, the `<h1>` (feature name), the subtitle.
-- The TOC entries to match the actual sections present (omit any TOC
-  entry whose section you've dropped).
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements`.
+**2. Render the requirements** by assembling section HTML bodies.
+
+**3. PUT the document**:
+
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {"problem": "<p>…</p>", "vision": "…", …}, "actor": "agent"}'
+```
+
+The response includes `{"document_id": N, "url": "/doc/N", ...}`.
+Note the `document_id` for later use in polling and comments endpoints.
+
+Use `?dry_run=true` if you want to validate the section keys before committing:
+
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1?dry_run=true" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {...}}'
+# → {"valid": true}
+```
 
 ### Sections
 
@@ -290,36 +313,10 @@ to carry forward useful context.
   or as a new entry in the feature tracker. Not everything needs to be
   in scope.
 
-### Export to the repo (if configured)
-
-Check `.feature-workflow.toml` at the repo root. The relevant key is
-`[export].requirements`. If the file is absent or the key is missing or
-set to `"none"`, skip this step.
-
-Otherwise:
-
-- **`markdown`**:
-
-  ```bash
-  mkdir -p docs/features/<FEATURE>
-  feature-html-to-md \
-      ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
-      docs/features/<FEATURE>/requirements.md
-  ```
-
-- **`html`**:
-
-  ```bash
-  mkdir -p docs/features/<FEATURE>
-  cp ~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html \
-     docs/features/<FEATURE>/requirements.html
-  ```
-
-Remember the export-target path; you'll commit it at handoff (Step 8).
-
 ### Open it
 
-It's in the inbox at `http://127.0.0.1:8800`.
+The document is in the inbox at `http://127.0.0.1:8800` and viewable
+at the `/doc/N` URL from the PUT response.
 
 ## Step 5: Present and review in parallel
 
@@ -416,49 +413,56 @@ Item-level guidance:
 
 ### Pick the next N
 
-Count existing requirements-feedback files across both the dev-store
-(`~/.claude/feature-docs/<PROJECT>/<FEATURE>/`, including
-`.feedback-archive/`) and the legacy repo location
-(`docs/features/<FEATURE>/`, including `.feedback-archive/`). Take
-the max N and increment. If none exist, `N = 1`.
+Probe the API to find the first unused instance number — check from
+N = 1 upward until you get a 404:
 
-### Write the HTML synthesis doc
+```bash
+N=1
+while [ "$(curl -fsS -o /dev/null -w '%{http_code}' \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N")" = "200" ]; do
+  N=$((N + 1))
+done
+```
 
-Use `~/.claude/skills/feature/feedback-template.html` as the basis.
-Copy its CSS and JavaScript verbatim. Render the triaged items into
-the template's three-tier structure.
+This naturally covers archived instances (they remain in the DB).
 
-Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`.
-Create parent dirs with `mkdir -p` if needed.
+### Write the feedback synthesis doc via the API
 
-Update in the template:
-- `<title>`, the `<h1>`, the subtitle.
-- The meta line (item counts).
-- The textarea total in the footer.
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/requirements-feedback-<N>`.
+The feedback doc is an opaque HTML body. Build the full HTML document
+using `~/.claude/skills/feature/feedback-template.html` as the basis
+(copy its CSS and JavaScript verbatim; render the triaged items into
+the three-tier structure; update `<title>`, `<h1>`, subtitle, meta
+line, textarea total, and the JS `docId` constant to
+`$PROJECT/$FEATURE/requirements-feedback/$N`).
+
+Then PUT it to the API as an opaque body:
+
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N" \
+  -H 'Content-Type: application/json' \
+  -d '{"body": "<full HTML document>", "actor": "agent"}'
+```
+
+The response includes `{"document_id": N_DOC, "url": "/doc/N_DOC", ...}`.
+Call this `FEEDBACK_DOC_ID`.
 
 ### Open it
 
-It's in the inbox at `http://127.0.0.1:8800`.
+The feedback doc is in the inbox at `http://127.0.0.1:8800`.
 
 ### Poll for submission
 
-After writing the doc, force-walk so the webapp indexes it:
+Poll `GET /api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis`
+every 5 seconds:
 
 ```bash
-curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
-```
-
-Then poll `GET /synthesis-response?path=<ABS_PATH>` every 5 seconds (where
-`<ABS_PATH>` is the absolute path of the doc you just wrote, e.g.
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html`):
-
-```bash
-curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements-feedback-<N>.html"
+curl -fsS \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis"
 ```
 
 - `curl` error → server unreachable; fall back to clipboard (see below).
-- `404` → not yet indexed; sleep 5, retry.
+- `404` → document not found; check that the PUT succeeded.
 - `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
   "still waiting in the inbox…" line roughly every 60 s.
 - `200 submitted=true` → read `responses` and `routine_flags` from the
@@ -501,11 +505,13 @@ any are missing, the human never saw them — re-surface those specific
 items (in chat, or by re-checking the synthesis doc renders them all)
 and resolve them explicitly rather than silently treating them as agreed.
 
-**Click-to-comment annotations** (from `requirements.html`): fetch from
-the webapp immediately after the synthesis response arrives:
+**Click-to-comment annotations** (from the requirements doc): fetch
+from the webapp immediately after the synthesis response arrives, using
+the document's logical key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
+curl -fsS \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
 ```
 
 If the `comments` array is non-empty, fold each comment in as additional
@@ -514,17 +520,18 @@ After folding them in, mark the consumed ids as integrated so they don't
 reappear next round:
 
 ```bash
-curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+curl -fsS -X POST \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
   -H 'Content-Type: application/json' \
-  -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html", "ids": [<ids from the GET response>]}'
+  -d '{"ids": [<ids from the GET response>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
-comments** in `requirements.html` and paste the JSON blob:
+comments** in the requirements doc and paste the JSON blob:
 
 ```json
 {
-  "doc": "docs/features/<FEATURE>/requirements",
+  "doc": "<logical_key>",
   "comments": [{"excerpt": "...", "text": "user comment"}]
 }
 ```
@@ -532,51 +539,43 @@ comments** in `requirements.html` and paste the JSON blob:
 ### Sanity-check (clipboard fallback only)
 
 When using the clipboard fallback, verify the `doc` field of any pasted
-blob — synthesis blob should be
-`docs/features/<FEATURE>/requirements-feedback-<N>`, comments blob should
-be `docs/features/<FEATURE>/requirements`. If not, warn and confirm before
+blob — synthesis blob should have `doc` matching
+`$PROJECT/$FEATURE/requirements-feedback/$N`, comments blob should match
+`$PROJECT/$FEATURE/requirements/1`. If not, warn and confirm before
 proceeding.
 
-### Re-render requirements.html
+### Re-render requirements via the API
 
-After collecting and reasoning over the inputs, **rewrite
-`requirements.html` from scratch** — a fresh render that incorporates:
+After collecting and reasoning over the inputs, **PUT fresh section
+content** — a complete re-render of all sections that incorporates:
 
 - Synthesis responses (your decisions per item).
 - Routine-flag items (the user's pushback).
 - Click-to-comment annotations (each treated as an additional piece of
   feedback, integrated into the relevant section).
 
-The fresh render mirrors the historical markdown workflow:
-mid-iteration in-place edits aren't enough — we re-render so the
-canonical HTML reflects the full integrated state.
+The fresh PUT replaces all sections — mid-iteration in-place edits
+aren't enough; we re-render so the canonical DB content reflects the
+full integrated state.
 
-Capture decisions that would otherwise be lost: check user annotations
-for design principles, broader reasoning, or open questions beyond the
-specific decision. Distill these into the **Design notes** section
-(`id="design-notes"`) of `requirements.html` (add the section if it
-doesn't exist). Keep entries to one or two lines, cite the source
-review round. Ensure declined suggestions land in **Alternatives
-considered** or as inline notes with the user's reasoning.
-
-### Re-run the export (if configured)
-
-If `.feature-workflow.toml` opts in for `requirements`, re-run the
-export step (markdown or HTML copy) so the repo snapshot reflects the
-integrated state.
-
-### Archive the synthesis doc
+Capture decisions that would otherwise be lost: distill them into the
+**design-notes** section (add it if it doesn't exist). Keep entries to
+one or two lines, cite the source review round. Ensure declined
+suggestions land in **alternatives** or as inline notes.
 
 ```bash
-PROJECT=$(basename $(git rev-parse --show-toplevel))
-mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
-mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/requirements-feedback-<N>.html \
-   ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {"problem": "…", "design-notes": "…", …}, "actor": "agent"}'
 ```
 
-The synthesis doc is transient; the integrated state lives in
-`requirements.html` and the design-notes section. Tell the user the
-rewrite is ready and that they can refresh the inbox tab to see it.
+The feedback synthesis doc is transient (it served its purpose when
+the synthesis was submitted). It remains in the DB but is now stale;
+no archiving step is needed.
+
+Tell the user the re-render is ready and that they can refresh the
+inbox tab to see it.
 
 Summarise the changes to the user.
 
@@ -586,13 +585,15 @@ If the user comes back with more feedback — a new round of click-to-
 comment annotations, fresh chat instructions, or a request to go round
 the loop again:
 
-1. Re-read `requirements.html` to pick up its current state.
-2. Apply the new feedback by rewriting `requirements.html` (the same
+1. GET the current requirements content from the API:
+   ```bash
+   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
+   ```
+2. Apply the new feedback and PUT the fresh sections (the same
    fresh-render discipline as Step 6b).
-3. If the changes are substantial, re-spawn the reviewer subagent on
-   the updated HTML and produce a new synthesis doc
-   (`requirements-feedback-2.html`, etc.) following Step 6.
-4. Re-run the export (if configured).
+3. If the changes are substantial, re-spawn the reviewer subagent and
+   produce a new feedback synthesis doc (using instance `N+1`) following
+   Step 6.
 
 Repeat until the user signals approval conversationally ("looks good",
 "approved", "let's plan").
@@ -604,14 +605,9 @@ When the user signals approval — any of: "looks good", "approved",
 
 1. Re-confirm: integrate any unprocessed click-to-comment or synthesis
    feedback (per Step 6b) before proceeding.
-2. Commit only what ended up in the repo via the export step:
-   - If `[export].requirements` is `markdown` or `html`, commit
-     `docs/features/<FEATURE>/requirements.{md,html}`.
-   - If `[export].requirements` is `none` or absent, there's nothing
-     to commit — the canonical HTML in the dev-store is local-only
-     working memory. Skip the commit step.
-3. Use the message `docs(<FEATURE>): add requirements`. Push.
-4. Automatically continue into the planning stage without waiting to
+2. The requirements document is stored in the DB — there is no file to
+   commit. Skip the commit step.
+3. Automatically continue into the planning stage without waiting to
    be asked. **Do NOT use the Skill tool to invoke `/feature-plan`** —
    it sets `disable-model-invocation: true`, which blocks the Skill
    tool. Read `~/.claude/skills/feature-plan/SKILL.md` and execute its
