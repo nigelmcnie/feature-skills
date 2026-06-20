@@ -38,24 +38,29 @@ be used for inference).
 
 Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
 
-Locate the docs, preferring the dev-store HTML and falling back to
-legacy markdown:
+Locate the docs, preferring the API and falling back to dev-store HTML
+then legacy markdown:
 
-- Requirements:
-  `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if it
-  exists, otherwise `docs/features/<FEATURE>/requirements.md`.
-- Plan: `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html` if it
-  exists, otherwise `docs/features/<FEATURE>/plan.md`.
+- Requirements: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1`
+  from the webapp. On 200, use the JSON `sections` array. Fall back to
+  `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` on 404;
+  then `docs/features/<FEATURE>/requirements.md`.
+- Plan: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`
+  from the webapp. On 200, use the JSON `sections` array. Fall back to
+  `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html` on 404; then
+  `docs/features/<FEATURE>/plan.md`.
 
-Call the chosen paths `REQUIREMENTS_PATH` and `PLAN_PATH`.
+When read from a file, call the chosen path `REQUIREMENTS_PATH` /
+`PLAN_PATH` as before.
 
 Read these and `CLAUDE.md`.
 
 ## Step 3: Verify all phases are merged
 
-Read `PLAN_PATH` to count the phases. In an HTML plan, count the
-distinct phase prefixes in `data-checklist-item="phase-<N>-..."`
-attributes; in a markdown plan, count `### Phase N:` headers. For each
+Read the plan to count the phases. In an **API plan** (JSON), count the
+distinct `phase-N` keys in the `sections` array. In an **HTML plan**,
+count the distinct phase prefixes in `data-checklist-item="phase-<N>-..."`
+attributes. In a **markdown plan**, count `### Phase N:` headers. For each
 phase, verify the corresponding branch landed on main. Different merge
 styles to handle:
 
@@ -138,15 +143,21 @@ mention it in the prompt.
 Use the Agent tool with `run_in_background: true` to spawn a reviewer subagent.
 Tell the user the reviewer is running and will surface findings shortly.
 
-Prompt for the reviewer (substitute the actual REQUIREMENTS_PATH and
-PLAN_PATH resolved in Step 2):
+Prompt for the reviewer (substitute actual PROJECT, FEATURE, and BASELINE
+resolved earlier):
 
 > You are reviewing the complete merged implementation of a feature on main.
 >
 > Diff stat: <include diff stat from Step 4>
 > Diff range: `$BASELINE..main` (substitute the actual SHA)
-> Requirements: `<REQUIREMENTS_PATH>`
-> Plan: `<PLAN_PATH>`
+> Fetch the requirements from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1`
+> (fall back to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
+> or `docs/features/<FEATURE>/requirements.md` if the API returns 404).
+> Fetch the plan from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`
+> (fall back to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`
+> or `docs/features/<FEATURE>/plan.md` if the API returns 404).
 > MR descriptions: <paste collated descriptions from Step 5, or "no MRs
 > available" if Step 5 was skipped>
 >
@@ -202,12 +213,21 @@ First, fold in any click-to-comment annotations the developer left on
 the spine docs (a bonus input, not a gate — skip on any error):
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html"
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
 ```
 
-Integrate any consumed ids afterwards (`POST /comments/integrate`, the
-same contract the other skills use), so they don't resurface next round.
+For each doc with a non-empty `comments` array, fold the comments in as
+additional feedback. Integrate the consumed ids afterwards so they don't
+resurface:
+
+```bash
+curl -fsS -X POST \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
+  -H 'Content-Type: application/json' \
+  -d '{"ids": [<ids>]}' 2>/dev/null || true
+# repeat for plan/1/comments/integrate if it also had comments
+```
 
 ### Triage
 
