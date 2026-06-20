@@ -401,8 +401,27 @@ implement", or similar:
 1. Re-confirm: fetch and integrate any remaining active comments from
    the webapp (same keyed `GET` + `POST .../comments/integrate` as
    Step 4) before proceeding.
-2. Both the plan and any requirements design-notes updates are stored
-   in the DB — there is nothing to commit. Skip the commit step.
+2. Export and commit (if configured). Check `.feature-workflow.toml`
+   at the repo root.
+
+   **Export plan** (if `[export].plan = "markdown"`):
+
+   ```bash
+   mkdir -p docs/features/$FEATURE
+   feature-html-to-md --webapp http://127.0.0.1:8800 \
+       $PROJECT/$FEATURE/plan/1 \
+       docs/features/$FEATURE/plan.md
+   ```
+
+   If the export ran, stage and commit the file, then push:
+
+   ```bash
+   git add docs/features/$FEATURE/plan.md
+   git commit -m "docs: $FEATURE plan"
+   git push
+   ```
+
+   If `[export].plan` is absent or `"none"`, skip.
 3. Tell the user:
 
    > Plan approved. When you're ready to implement, switch to your Sonnet session and run:

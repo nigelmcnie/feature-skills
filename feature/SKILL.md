@@ -71,11 +71,11 @@ If accepted:
    plan = "markdown"
    features = "markdown"
    ```
-3. Run `feature-html-to-md
-   ~/.claude/feature-docs/<PROJECT>/features.html features.md` to
-   produce the initial repo snapshot, and commit `features.md` and
-   `.feature-workflow.toml` together with the message
-   `Add features tracker + workflow config`, then push.
+3. Run `feature-html-to-md --webapp http://127.0.0.1:8800
+   --merge-features $PROJECT features.md` to produce the initial repo
+   snapshot, and commit `features.md` and `.feature-workflow.toml`
+   together with the message `Add features tracker + workflow config`,
+   then push.
 
 If declined:
 

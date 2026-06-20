@@ -503,8 +503,35 @@ When the user signals approval — any of: "looks good", "approved",
 
 1. Re-confirm: integrate any unprocessed click-to-comment or synthesis
    feedback (per Step 6b) before proceeding.
-2. The requirements document is stored in the DB — there is no file to
-   commit. Skip the commit step.
+2. Export and commit (if configured). Check `.feature-workflow.toml`
+   at the repo root.
+
+   **Export requirements** (if `[export].requirements = "markdown"`):
+
+   ```bash
+   mkdir -p docs/features/$FEATURE
+   feature-html-to-md --webapp http://127.0.0.1:8800 \
+       $PROJECT/$FEATURE/requirements/1 \
+       docs/features/$FEATURE/requirements.md
+   ```
+
+   **Export features tracker** (if `[export].features = "markdown"`):
+
+   ```bash
+   feature-html-to-md --webapp http://127.0.0.1:8800 \
+       --merge-features $PROJECT \
+       features.md
+   ```
+
+   If either export ran, stage and commit only the exported files, then push:
+
+   ```bash
+   git add docs/features/$FEATURE/requirements.md features.md  # as applicable
+   git commit -m "docs: $FEATURE requirements"
+   git push
+   ```
+
+   If neither export ran, skip.
 3. Automatically continue into the planning stage without waiting to
    be asked. **Do NOT use the Skill tool to invoke `/feature-plan`** —
    it sets `disable-model-invocation: true`, which blocks the Skill

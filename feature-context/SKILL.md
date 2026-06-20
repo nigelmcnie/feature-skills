@@ -188,10 +188,36 @@ already exists — treat as already-captured and continue.
 If the webapp is unreachable, skip silently — the context doc is
 already in the DB from Step 4.
 
-## Step 7: Commit and push
+## Step 7: Export and commit (if configured)
 
-The context document is stored in the DB and the tracker row is in the
-webapp — there is nothing to commit. Skip.
+Check `.feature-workflow.toml` at the repo root.
+
+**Export context** (if `[export].context = "markdown"`):
+
+```bash
+mkdir -p docs/features/$FEATURE
+feature-html-to-md --webapp http://127.0.0.1:8800 \
+    $PROJECT/$FEATURE/context/1 \
+    docs/features/$FEATURE/context.md
+```
+
+**Export features tracker** (if `[export].features = "markdown"`):
+
+```bash
+feature-html-to-md --webapp http://127.0.0.1:8800 \
+    --merge-features $PROJECT \
+    features.md
+```
+
+If either export ran, stage and commit only the exported files, then push:
+
+```bash
+git add docs/features/$FEATURE/context.md features.md  # as applicable
+git commit -m "docs: capture $FEATURE context"
+git push
+```
+
+If neither export ran (`.feature-workflow.toml` absent or both keys are `"none"`), skip.
 
 ## Step 8: Done
 
