@@ -28,43 +28,57 @@ Wait for their response. If they say no, stop here.
 Resolve `PROJECT` once: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
 `$ARGUMENTS` is the feature name (FEATURE).
 
-Locate the plan, in this order of preference:
+Locate and read the plan, in this order of preference:
 
-1. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html` — the
-   canonical HTML in the dev-store. Use this when it exists.
-2. Otherwise `docs/features/<FEATURE>/plan.md` — the legacy markdown
-   plan (for features planned before the HTML migration).
+1. **API** — `GET /api/documents/$PROJECT/$FEATURE/plan/1` from the
+   local webapp. This is the canonical location when the plan was
+   authored via the API.
+   ```bash
+   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1"
+   ```
+   A `200` response gives a JSON object with a `sections` array of
+   `{"key": "...", "body": "..."}` objects.
+2. **Dev-store HTML** — `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`
+   if it exists and the API returned 404 (legacy plans written before
+   the API migration).
+3. **Markdown** — `docs/features/<FEATURE>/plan.md` — older legacy.
 
-Call the chosen path `PLAN_PATH` and remember which format it is.
+Remember which source was used (API or file) and which format (sections
+JSON, HTML, or markdown).
 
 ### Find the first unchecked phase
 
-**HTML plan**: every checklist `<li>` carries
-`data-checklist-item="phase-<N>-<step>"`. An item is checked when its
-`<input>` element has the `checked` attribute. Walk the items in
-document order and find the smallest phase number `N` that still has
-at least one item without `checked`. That's the phase you're about
-to implement.
+**API plan**: extract the `checklist` section body from the sections
+array, then scan for unchecked items:
 
-A quick scan:
+```bash
+# After storing the API JSON response in PLAN_JSON:
+CHECKLIST=$(echo "$PLAN_JSON" | python3 -c \
+  "import sys,json; secs=json.load(sys.stdin)['sections']; \
+   print(next((s['body'] for s in secs if s['key']=='checklist'), ''))")
+echo "$CHECKLIST" | grep -oE \
+  'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' \
+  | grep -v ' checked'
+```
+
+**HTML plan file**: grep the file directly:
 
 ```bash
 grep -oE 'data-checklist-item="phase-[0-9]+-[0-9]+"[^>]*>[[:space:]]*<input[^>]*>' "$PLAN_PATH" \
   | grep -v ' checked'
 ```
 
-(The `[[:space:]]*` tolerates same-line whitespace between the `<li>`
-open tag and the `<input>`. The plan template's checklist adjacency
-contract still requires them on the same line — if a re-render
-pretty-prints the checklist across multiple lines, the grep will
-miss items.)
-
-The first matching line names the next phase via its
-`phase-<N>-<step>` ID.
+(The `[[:space:]]*` tolerates same-line whitespace. The checklist
+adjacency contract requires the `<li>` and `<input>` on the same
+line — if a re-render pretty-prints across multiple lines, the grep
+will miss items.)
 
 **Markdown plan**: find the first unchecked `- [ ]` item in the
 checklist. The phase number is the most recent `### Phase N:` header
 preceding it.
+
+The first matching line names the next phase via its
+`phase-<N>-<step>` ID.
 
 If all items are checked, tell the user the feature is fully
 implemented and suggest running manual verification — and stop. Do
@@ -134,25 +148,38 @@ that you should not need to make significant design decisions.
 
 ### Checking off an item
 
-**HTML plan** (`plan.html` in dev-store): edit `$PLAN_PATH` and add
-the `checked` attribute to the `<input>` inside the matching
-`<li data-checklist-item="phase-<N>-<step>">`:
+**API plan**: GET the current plan content, update the `checklist`
+section HTML to add `checked` to the matching `<input>`, then PUT all
+sections back:
 
-```
-<li data-checklist-item="phase-1-3"><input type="checkbox"><span class="label">…</span></li>
-```
+1. GET current plan:
+   ```bash
+   PLAN_JSON=$(curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1")
+   ```
 
-becomes
+2. In the `checklist` section body, change the matching item:
+   ```
+   <li data-checklist-item="phase-1-3"><input type="checkbox"><span class="label">…</span></li>
+   ```
+   becomes:
+   ```
+   <li data-checklist-item="phase-1-3"><input type="checkbox" checked><span class="label">…</span></li>
+   ```
+   Use the `data-checklist-item` ID to locate the right `<input>`.
+   IDs are stable — don't pattern-match by item text.
 
-```
-<li data-checklist-item="phase-1-3"><input type="checkbox" checked><span class="label">…</span></li>
-```
+3. PUT all sections back with the updated checklist:
+   ```bash
+   curl -fsS -X PUT \
+     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
+     -H 'Content-Type: application/json' \
+     -d '{"sections": {<all sections with updated checklist>}, "actor": "agent"}'
+   ```
 
-Use the `data-checklist-item` ID to locate the right `<input>`. IDs
-are stable across re-renders — don't pattern-match by item text. No
-markdown re-export: `plan.md` (if it was exported at handoff) is a
-post-approval snapshot, deliberately frozen at the start of
-implementation.
+**HTML plan file** (legacy — only when the plan was read from the
+dev-store in Step 0): edit the file and add `checked` to the
+matching `<input>`. No markdown re-export: `plan.md` is a
+post-approval snapshot, deliberately frozen.
 
 **Markdown plan** (legacy): change `- [ ]` to `- [x]` for the
 matching item.

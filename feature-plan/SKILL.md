@@ -11,11 +11,11 @@ argument-hint: "[feature-name]"
 You are creating an implementation plan for a feature whose requirements
 have been approved.
 
-The canonical plan doc is HTML in the developer-scoped store at
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`, where `<PROJECT>`
+The plan document is authored and stored in the webapp's DB via the
+logical-key API, addressed as `<PROJECT>/<FEATURE>/plan/1`. `<PROJECT>`
 is `basename $(git rev-parse --show-toplevel)`. The repo gets an
-exported snapshot (markdown or HTML) when `.feature-workflow.toml` opts
-in.
+exported snapshot when `.feature-workflow.toml` opts in (Phase 7
+repoints the export to source from the DB).
 
 ## Model check
 
@@ -58,14 +58,15 @@ Read the following:
 
 - The approved requirements for this feature, in this order of
   preference:
-  1. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if
-     it exists — the canonical location.
-  2. Otherwise `docs/features/<FEATURE>/requirements.md` — the
-     legacy/exported location.
-
-  Including any **Indicative implementation notes** section at the
-  bottom, which carries forward plan-level context that didn't belong
-  in the requirements body.
+  1. `GET /api/documents/$PROJECT/$FEATURE/requirements/1` from the
+     webapp — canonical when requirements were authored via the API.
+     Parse the `sections` array from the JSON response. Include any
+     **indicative-notes** section, which carries forward plan-level
+     context that didn't belong in the requirements body.
+  2. `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` if
+     it exists — legacy location for features written before the API
+     migration.
+  3. `docs/features/<FEATURE>/requirements.md` — older legacy location.
 - `CLAUDE.md` (architecture and conventions).
 - All source modules referenced in the requirements' technical
   approach.
@@ -73,21 +74,50 @@ Read the following:
 
 ## Step 2: Draft
 
-Use `~/.claude/skills/feature/plan-template.html` as the basis. Copy
-its CSS and JavaScript verbatim. Render the plan into the template's
-structure: TOC sidebar, sections per the plan's headings, syntax-
-highlighted code blocks, phase badges, clickable checklist, click-to-
-comment widget, sticky footer.
+**1. Fetch the manifest** to confirm the section keys for a plan:
 
-Write to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`. Create
-parent dirs with `mkdir -p` if needed.
+```bash
+curl -fsS http://127.0.0.1:8800/api/manifests/plan
+```
 
-Update in the template:
+The plan manifest includes base sections (overview, key-decisions,
+data-model, contract, file-structure, verification, qc, checklist)
+plus a `repeated_prefixes: ["phase-"]` — each delivery phase is a
+`phase-N` section key.
 
-- `<title>`, the `<h1>` (feature name), the subtitle.
-- The TOC entries to match the actual sections in the plan (use `id`
-  attributes on each `<section>` that match the TOC's `href` anchors).
-- The JS `docId` constant — e.g. `docs/features/<FEATURE>/plan`.
+**2. Render the plan** by assembling section HTML bodies following the
+structure described below.
+
+**3. PUT the document**:
+
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "sections": {
+      "overview": "<p>…</p>",
+      "key-decisions": "…",
+      "phase-1": "…",
+      "phase-2": "…",
+      "checklist": "…"
+    },
+    "actor": "agent"
+  }'
+```
+
+The response includes `{"document_id": N, "url": "/doc/N", ...}`.
+Note the `document_id` — you will need it for comments endpoints.
+
+Use `?dry_run=true` to validate section keys before committing:
+
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1?dry_run=true" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {…}}'
+# → {"valid": true}
+```
 
 ### Plan structure
 
@@ -191,36 +221,10 @@ Reference `CLAUDE.md` for quality control steps rather than hardcoding
 them. Instruct the implementing agent to follow whatever `CLAUDE.md`
 says at implementation time.
 
-### Export to the repo (if configured)
-
-Check `.feature-workflow.toml` at the repo root. The relevant key is
-`[export].plan`. If the file is absent or the key is missing or set to
-`"none"`, skip this step.
-
-Otherwise:
-
-- **`markdown`**:
-
-  ```bash
-  mkdir -p docs/features/<FEATURE>
-  feature-html-to-md \
-      ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html \
-      docs/features/<FEATURE>/plan.md
-  ```
-
-- **`html`**:
-
-  ```bash
-  mkdir -p docs/features/<FEATURE>
-  cp ~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html \
-     docs/features/<FEATURE>/plan.html
-  ```
-
-Remember the export-target path; you'll commit it at handoff (Step 6).
-
 ### Open it
 
-It's in the inbox at `http://127.0.0.1:8800`.
+The plan is in the inbox at `http://127.0.0.1:8800` and viewable at
+the `/doc/N` URL from the PUT response.
 
 ## Step 3: Present and review in parallel
 
@@ -307,50 +311,59 @@ Spell out jargon and name the concrete section. Don't make the user
 reverse-engineer the question from a terse one-liner.
 
 When the user replies (with answers or "go"), also fetch active comments
-from the webapp before applying anything:
+from the webapp before applying anything, using the plan's logical key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
 ```
 
 If the `comments` array is non-empty, fold each comment into the same
 triage as reviewer feedback. After applying, integrate the consumed ids:
 
 ```bash
-curl -fsS -X POST http://127.0.0.1:8800/comments/integrate \
+curl -fsS -X POST \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments/integrate" \
   -H 'Content-Type: application/json' \
-  -d '{"path": "'"$HOME"'/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html", "ids": [<ids from GET>]}'
+  -d '{"ids": [<ids from GET>]}'
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
-comments** in `plan.html` and paste the JSON blob:
-`{"doc": "docs/features/<FEATURE>/plan", "comments": [...]}`.
+comments** in the plan doc and paste the JSON blob:
+`{"doc": "$PROJECT/$FEATURE/plan/1", "comments": [...]}`.
 
 Wait for the user's response. Apply the "Will apply" items plus the
 resolved questions and any actionable comment annotations.
 
 If any "Need your call" answers reveal substantive design decisions
-(principles, reasoning, broader implications beyond the specific
-item), capture them in a **Design notes** section of
-`~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` (add
-the section if it doesn't exist). Keep entries to one or two lines,
-cite the review round. Re-run the requirements export if
-`.feature-workflow.toml` opts in for `requirements`.
+(principles, reasoning, broader implications beyond the specific item),
+capture them in the **design-notes** section of the requirements doc.
+GET the current requirements content, add/update the design-notes
+section, then PUT the updated sections back:
 
-### Re-render plan.html
+```bash
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
+# … update design-notes section …
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {…, "design-notes": "…"}, "actor": "agent"}'
+```
 
-After integrating the round of feedback, **rewrite `plan.html` from
-scratch** — a fresh render that incorporates all applied items.
-Preserve existing `data-checklist-item` IDs for unchanged steps; mint
-new IDs for new ones. The fresh-render discipline mirrors the
-historical markdown workflow: the canonical HTML reflects the full
-integrated state, not a patchwork of in-place edits.
+### Re-render the plan via the API
 
-### Re-run the export (if configured)
+After integrating the round of feedback, **PUT fresh section content**
+— a complete re-render of all sections that incorporates all applied
+items. Preserve existing `data-checklist-item` IDs for unchanged steps;
+mint new IDs for new ones. The fresh-PUT discipline mirrors the
+historical re-render workflow: the canonical DB content reflects the
+full integrated state, not a patchwork.
 
-If `.feature-workflow.toml` opts in for `plan`, re-run the export
-step (markdown or HTML copy) so the repo snapshot reflects the
-integrated state.
+```bash
+curl -fsS -X PUT \
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"sections": {"overview": "…", "checklist": "…", …}, "actor": "agent"}'
+```
 
 Summarise what was applied to the user. They can refresh the inbox
 tab to see the new render.
@@ -362,17 +375,19 @@ are new comments in the webapp, then at each iterate round fetch active
 comments from the webapp first:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/comments?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html"
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
 ```
 
 If the `comments` array is non-empty, fold them in and integrate the ids
 (same as Step 4). Then:
 
-1. Re-read `plan.html` to pick up its current state.
-2. Apply the new feedback by rewriting `plan.html` (fresh render).
-3. If the changes are substantial, re-spawn the reviewer subagent on
-   the updated HTML.
-4. Re-run the export (if configured).
+1. GET the current plan content from the API:
+   ```bash
+   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1"
+   ```
+2. Apply the new feedback and PUT the fresh sections (fresh-render discipline).
+3. If the changes are substantial, re-spawn the reviewer subagent on the
+   updated plan.
 5. Follow Step 4 (triage) for any new reviewer feedback.
 
 Repeat until the user approves conversationally.
@@ -383,21 +398,12 @@ When the user signals approval — any of: "looks good", "approved",
 "let's implement", "ready to implement", "start building", "time to
 implement", or similar:
 
-1. Re-confirm: fetch and integrate any remaining active comments from the
-   webapp (same `GET /comments?path=` + `POST /comments/integrate` as Step
-   4) before proceeding.
-2. Commit only what ended up in the repo via the export step:
-   - If `[export].plan` is `markdown` or `html`, commit
-     `docs/features/<FEATURE>/plan.{md,html}`.
-   - If `requirements.html` was updated with design notes in this
-     session and `[export].requirements` opts in, the regenerated
-     `docs/features/<FEATURE>/requirements.{md,html}` is also
-     pending — commit it too.
-   - If both keys are `none` or absent, there's nothing to commit —
-     the canonical HTML in the dev-store is local-only working
-     memory. Skip the commit step.
-3. Use the message `docs(<FEATURE>): add implementation plan`. Push.
-4. Tell the user:
+1. Re-confirm: fetch and integrate any remaining active comments from
+   the webapp (same keyed `GET` + `POST .../comments/integrate` as
+   Step 4) before proceeding.
+2. Both the plan and any requirements design-notes updates are stored
+   in the DB — there is nothing to commit. Skip the commit step.
+3. Tell the user:
 
    > Plan approved. When you're ready to implement, switch to your Sonnet session and run:
    >
