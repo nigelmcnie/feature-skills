@@ -14,8 +14,8 @@ The requirements document and feedback synthesis docs are authored and
 stored in the webapp's DB via the logical-key API. Documents are
 addressed by `<PROJECT>/<FEATURE>/<doc_type>/<instance>`.
 `<PROJECT>` is `basename $(git rev-parse --show-toplevel)`.
-The repo gets an exported snapshot when `.feature-workflow.toml` opts in
-(Phase 7 repoints the export to source from the DB).
+The repo gets an exported snapshot, sourced from the DB, when
+`.feature-workflow.toml` opts in.
 
 ## Model check
 
@@ -225,7 +225,10 @@ in the inbox at `http://127.0.0.1:8800`. Spawn a reviewer subagent using the Age
 Prompt for the reviewer:
 
 > You are reviewing a requirements document for a feature.
-> Read the document at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`.
+> Fetch the document from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/<PROJECT>/<FEATURE>/requirements/1`
+> (use the JSON `sections` array; fall back to
+> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html` on 404).
 > Read `CLAUDE.md` for architectural context.
 > Read any other design docs in the repo that look relevant.
 >

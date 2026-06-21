@@ -17,8 +17,7 @@ been discussed into the structure outlined in Step 4.
 The context document is authored and stored in the webapp's DB via the
 logical-key API, addressed as `<PROJECT>/<FEATURE>/context/1`. `<PROJECT>`
 is `basename $(git rev-parse --show-toplevel)`. The repo gets an exported
-snapshot when `.feature-workflow.toml` opts in (Phase 7 repoints the
-export to source from the DB).
+snapshot, sourced from the DB, when `.feature-workflow.toml` opts in.
 
 ## Step 1: Establish the feature name
 

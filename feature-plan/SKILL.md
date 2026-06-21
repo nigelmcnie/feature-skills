@@ -14,8 +14,8 @@ have been approved.
 The plan document is authored and stored in the webapp's DB via the
 logical-key API, addressed as `<PROJECT>/<FEATURE>/plan/1`. `<PROJECT>`
 is `basename $(git rev-parse --show-toplevel)`. The repo gets an
-exported snapshot when `.feature-workflow.toml` opts in (Phase 7
-repoints the export to source from the DB).
+exported snapshot, sourced from the DB, when `.feature-workflow.toml`
+opts in.
 
 ## Model check
 
@@ -235,10 +235,14 @@ in the inbox at `http://127.0.0.1:8800`. Spawn a reviewer subagent using the Age
 Prompt for the reviewer:
 
 > You are reviewing an implementation plan for a feature.
-> Read the plan at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html`.
-> Read the requirements at `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`
-> (fall back to `docs/features/<FEATURE>/requirements.md` if the HTML
-> doesn't exist).
+> Fetch the plan from the webapp API:
+> `GET http://127.0.0.1:8800/api/documents/<PROJECT>/<FEATURE>/plan/1`
+> (use the JSON `sections` array; fall back to
+> `~/.claude/feature-docs/<PROJECT>/<FEATURE>/plan.html` on 404).
+> Fetch the requirements similarly:
+> `GET http://127.0.0.1:8800/api/documents/<PROJECT>/<FEATURE>/requirements/1`
+> (fall back to `~/.claude/feature-docs/<PROJECT>/<FEATURE>/requirements.html`,
+> then `docs/features/<FEATURE>/requirements.md`).
 > Read `CLAUDE.md` for architectural context.
 >
 > Check:
