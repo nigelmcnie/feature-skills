@@ -36,10 +36,14 @@ Check the current branch (`git branch --show-current`):
 
 - **On `main` (or the default branch)** — typical after `/feature-review`,
   including when review runs this skill inline: isolate in a worktree.
-  1. Count completed review-feedback rounds (archived HTML in
-     `~/.claude/feature-docs/<PROJECT>/<FEATURE>/.feedback-archive/` plus
-     archived markdown in `docs/features/<FEATURE>/.feedback-archive/`);
-     call the total M.
+  1. Determine the round number M from existing iterate branches, not from
+     files — the review flow no longer writes synthesis docs to
+     `.feedback-archive/`, so a file count is always 0. Count the existing
+     iterate branches (local and remote):
+     ```bash
+     git branch -a --list '*features/<FEATURE>-iterate-*' | wc -l
+     ```
+     Call that M; the new branch is round M+1.
   2. Tell the user in one line that you're isolating this round in a
      worktree, then create it **the way this repo wants**: check the
      repo's `CLAUDE.md` (and `.claude/`) for worktree instructions first —

@@ -535,8 +535,11 @@ def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
                 continue
             if db_feat["status"] != target_status:
                 continue  # moving to another section; placed there
-            lc = _link_cell(slug, rd["link"])
-            rows.append(_format_row(h, lc, db_feat, rd))
+            # Unchanged status: preserve the existing row verbatim. The DB notes are
+            # plain text, so re-rendering from db_feat would strip authored inline
+            # markdown (backticks, links) from the cell. Only moved/new rows (below)
+            # are rendered from the DB.
+            rows.append("| " + " | ".join(rd["cells"]) + " |")
             placed.add(slug)
 
         # 2. Rows from other sections that moved here
