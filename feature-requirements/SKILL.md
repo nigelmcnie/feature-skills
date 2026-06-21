@@ -144,6 +144,11 @@ curl -fsS -X PUT \
 
 A good requirements doc contains:
 
+- **Summary** (`id="summary"`): the lead section — explain what we're
+  implementing simply, in plain language with concrete examples, written
+  for someone who hasn't read the rest of the doc. No jargon. This is
+  your answer to "explain what we're implementing simply, with examples",
+  and it comes before the Problem so the simple framing lands first.
 - **Problem** (`id="problem"`): what's broken or missing, with concrete
   examples.
 - **Vision** (`id="vision"`): one-sentence description of the solved
