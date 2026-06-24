@@ -66,6 +66,20 @@ def find_section_h2s(html: str) -> list[str]:
     return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
 
 
+def extract_embedded_style_classes(html: str) -> set[str]:
+    """Classes defined in the doc's own <style> blocks.
+
+    Opaque/self-contained docs (e.g. the synthesis form) legitimately keep a
+    residual <style> for interactive-form chrome the contract has no vocabulary
+    for. Those classes are grounded by the doc itself, so they're allowed.
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+    classes: set[str] = set()
+    for style in soup.find_all('style'):
+        classes |= extract_contract_classes(style.get_text())
+    return classes
+
+
 def fetch_contract(webapp: str, override: str | None) -> str:
     if override:
         return Path(override).read_text()
@@ -110,6 +124,12 @@ def lint(
     extra_classes = extract_contract_classes(extra_css) if extra_css.strip() else set()
     allowed = contract_classes | extra_classes
 
+    # In opaque/self-contained mode (--allow-h2), the doc carries its own
+    # form-chrome styling in an embedded <style>; those classes are grounded by
+    # the doc itself. Genuine typos (a class styled nowhere) still fail.
+    if allow_h2:
+        allowed |= extract_embedded_style_classes(html)
+
     html_classes = extract_html_classes(html)
     violations: list[str] = []
 
@@ -119,7 +139,8 @@ def lint(
     if not allow_h2:
         for text in find_section_h2s(html):
             label = text[:60] + '…' if len(text) > 60 else text
-            violations.append(f'section-level <h2>: {label!r}')
+            violations.append(f'disallowed <h2> in document body '
+                              f'(the webapp supplies each section heading): {label!r}')
 
     return violations
 
@@ -147,7 +168,9 @@ def main() -> None:
     parser.add_argument(
         '--allow-h2',
         action='store_true',
-        help='Allow <h2> in content (use for opaque/synthesis docs)',
+        help='Opaque/self-contained doc mode: allow <h2>, and accept classes '
+             'defined in the doc\'s own <style> (form chrome). Use for '
+             'synthesis/tracker docs.',
     )
     parser.add_argument(
         'target',
