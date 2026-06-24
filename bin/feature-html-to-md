@@ -393,10 +393,11 @@ def _api_get(url: str) -> dict:
 # Tracker merge
 # ---------------------------------------------------------------------------
 
-_STATUS_SECTIONS = {"In Progress", "Available", "Done"}
+_STATUS_SECTIONS = {"In Progress", "Available", "Parked", "Done"}
 _SECTION_TO_STATUS = {
     "In Progress": "in_progress",
     "Available": "available",
+    "Parked": "parked",
     "Done": "done",
 }
 _STATUS_TO_SECTION = {v: k for k, v in _SECTION_TO_STATUS.items()}
@@ -471,7 +472,7 @@ def _format_row(section: str, link_cell: str, db_feat: dict,
         owner = (db_feat.get("owner") or "").replace("|", "\\|")
         notes = (db_feat.get("notes") or "").replace("|", "\\|")
         return f"| {link_cell} | {owner} | {notes} |"
-    if section == "Available":
+    if section in ("Available", "Parked"):
         notes = (db_feat.get("notes") or "").replace("|", "\\|")
         return f"| {link_cell} | {notes} |"
     # Done — preserve the existing outcome text; use 'Shipped.' for new rows
@@ -482,6 +483,66 @@ def _format_row(section: str, link_cell: str, db_feat: dict,
     else:
         outcome = "Shipped."
     return f"| {link_cell} | {outcome} |"
+
+
+def _build_section_block(h: str, blk: dict, all_rows: dict, db_features: dict,
+                         placed: set) -> list[str]:
+    """Render one status section into result lines, mutating placed."""
+    target_status = _SECTION_TO_STATUS[h]
+    if h == "In Progress":
+        tbl_header = ["| Feature | Owner | Notes |\n", "|---|---|---|\n"]
+    elif h in ("Available", "Parked"):
+        tbl_header = ["| Feature | Notes |\n", "|---|---|\n"]
+    else:
+        tbl_header = ["| Feature | Outcome |\n", "|---|---|\n"]
+
+    rows: list[str] = []
+
+    # 1. Existing rows that belong in this section
+    for slug, rd in all_rows.items():
+        if rd["in_section"] != h:
+            continue
+        db_feat = db_features.get(slug)
+        if db_feat is None:
+            rows.append("| " + " | ".join(rd["cells"]) + " |")
+            placed.add(slug)
+            continue
+        if db_feat["status"] != target_status:
+            continue
+        rows.append("| " + " | ".join(rd["cells"]) + " |")
+        placed.add(slug)
+
+    # 2. Rows from other sections that moved here
+    for slug, rd in all_rows.items():
+        if rd["in_section"] == h or slug in placed:
+            continue
+        db_feat = db_features.get(slug)
+        if db_feat is None or db_feat["status"] != target_status:
+            continue
+        lc = _link_cell(slug, rd["link"])
+        rows.append(_format_row(h, lc, db_feat, rd))
+        placed.add(slug)
+
+    # 3. New DB features that have no existing row anywhere
+    for slug, db_feat in db_features.items():
+        if slug in placed or slug in all_rows:
+            continue
+        if db_feat["status"] != target_status:
+            continue
+        lc = _link_cell(slug, None)
+        rows.append(_format_row(h, lc, db_feat, None))
+        placed.add(slug)
+
+    body_lines = blk["lines"][1:]  # skip the ## heading line itself
+    pre, post = _split_around_table(body_lines)
+    out: list[str] = []
+    out.append(blk["lines"][0])
+    out.extend(pre)
+    out.extend(tbl_header)
+    for row in rows:
+        out.append(row + "\n")
+    out.extend(post)
+    return out
 
 
 def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
@@ -512,8 +573,12 @@ def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
                     "in_section": h,
                 }
 
+    # Track whether a ## Parked block already exists in the document.
+    has_parked_block = any(blk["heading"] == "Parked" for blk in blocks)
+
     placed: set[str] = set()
     result: list[str] = []
+    parked_synthesised = False
 
     for blk in blocks:
         h = blk["heading"]
@@ -521,66 +586,39 @@ def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
             result.append("".join(blk["lines"]))
             continue
 
-        target_status = _SECTION_TO_STATUS[h]
-        if h == "In Progress":
-            tbl_header = ["| Feature | Owner | Notes |\n", "|---|---|---|\n"]
-        elif h == "Available":
-            tbl_header = ["| Feature | Notes |\n", "|---|---|\n"]
-        else:
-            tbl_header = ["| Feature | Outcome |\n", "|---|---|\n"]
+        result.extend(_build_section_block(h, blk, all_rows, db_features, placed))
 
-        rows: list[str] = []
+        # After emitting ## In Progress, synthesise ## Parked if needed.
+        if h == "In Progress" and not has_parked_block and not parked_synthesised:
+            parked_db_feats = {
+                slug: feat for slug, feat in db_features.items()
+                if feat["status"] == "parked"
+            }
+            if parked_db_feats:
+                parked_block = {
+                    "heading": "Parked",
+                    "lines": ["## Parked\n"],
+                }
+                result.extend(_build_section_block(
+                    "Parked", parked_block, all_rows, db_features, placed
+                ))
+                parked_synthesised = True
+                has_parked_block = True  # prevent end-of-doc fallback
 
-        # 1. Existing rows that belong in this section
-        for slug, rd in all_rows.items():
-            if rd["in_section"] != h:
-                continue
-            db_feat = db_features.get(slug)
-            if db_feat is None:
-                # Not in DB — preserve as-is
-                rows.append("| " + " | ".join(rd["cells"]) + " |")
-                placed.add(slug)
-                continue
-            if db_feat["status"] != target_status:
-                continue  # moving to another section; placed there
-            # Unchanged status: preserve the existing row verbatim. The DB notes are
-            # plain text, so re-rendering from db_feat would strip authored inline
-            # markdown (backticks, links) from the cell. Only moved/new rows (below)
-            # are rendered from the DB.
-            rows.append("| " + " | ".join(rd["cells"]) + " |")
-            placed.add(slug)
-
-        # 2. Rows from other sections that moved here
-        for slug, rd in all_rows.items():
-            if rd["in_section"] == h or slug in placed:
-                continue
-            db_feat = db_features.get(slug)
-            if db_feat is None or db_feat["status"] != target_status:
-                continue
-            lc = _link_cell(slug, rd["link"])
-            rows.append(_format_row(h, lc, db_feat, rd))
-            placed.add(slug)
-
-        # 3. New DB features that have no existing row anywhere
-        for slug, db_feat in db_features.items():
-            if slug in placed or slug in all_rows:
-                continue
-            if db_feat["status"] != target_status:
-                continue
-            lc = _link_cell(slug, None)
-            rows.append(_format_row(h, lc, db_feat, None))
-            placed.add(slug)
-
-        # Reconstruct the section: ## heading + pre-table prose + table + post
-        body_lines = blk["lines"][1:]  # skip the ## heading line itself
-        pre, post = _split_around_table(body_lines)
-
-        result.append(blk["lines"][0])
-        result.extend(pre)
-        result.extend(tbl_header)
-        for row in rows:
-            result.append(row + "\n")
-        result.extend(post)
+    # End-of-doc fallback: parked features exist but there was no ## In Progress block.
+    if not parked_synthesised and not has_parked_block:
+        parked_db_feats = {
+            slug: feat for slug, feat in db_features.items()
+            if feat["status"] == "parked"
+        }
+        if parked_db_feats:
+            parked_block = {
+                "heading": "Parked",
+                "lines": ["## Parked\n"],
+            }
+            result.extend(_build_section_block(
+                "Parked", parked_block, all_rows, db_features, placed
+            ))
 
     return "".join(result)
 
