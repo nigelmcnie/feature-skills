@@ -403,6 +403,9 @@ _STATUS_TO_SECTION = {v: k for k, v in _SECTION_TO_STATUS.items()}
 
 _TABLE_ROW_RE = re.compile(r"^\|.+\|$")
 _LINK_IN_CELL_RE = re.compile(r"^\[([^\]]+)\]\(([^)]+)\)$")
+# The href always carries the slug as docs/features/<slug>/...; the link text
+# may legacy-render a display name instead, so the href is the canonical key.
+_HREF_SLUG_RE = re.compile(r"docs/features/([A-Za-z0-9._-]+)/")
 
 
 def _parse_table_rows(lines: list[str]) -> list[dict]:
@@ -427,7 +430,12 @@ def _parse_table_rows(lines: list[str]) -> list[dict]:
         if not header_seen or not first:
             continue
         m = _LINK_IN_CELL_RE.match(first)
-        slug, link = (m.group(1), m.group(2)) if m else (first, None)
+        if m:
+            text, link = m.group(1), m.group(2)
+            href_slug = _HREF_SLUG_RE.search(link)
+            slug = href_slug.group(1) if href_slug else text
+        else:
+            slug, link = first, None
         rows.append({"slug": slug, "link": link, "cells": cells})
     return rows
 
