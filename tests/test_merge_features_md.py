@@ -309,3 +309,65 @@ class TestIdempotency:
         first = _merge_features_md(_BASE_MD, db)
         second = _merge_features_md(first, db)
         assert first == second
+
+
+# ---------------------------------------------------------------------------
+# Archived features are dropped from the merge-export
+# ---------------------------------------------------------------------------
+
+
+class TestArchivedExcluded:
+    """``archived`` is deliberately absent from the rebuilt-section allow-list
+    (``_STATUS_SECTIONS`` / ``_SECTION_TO_STATUS``), so an archived feature must
+    never be placed into a rebuilt status section of the merged output. The
+    sibling webapp now writes ``archived`` as a real status, so this cross-repo
+    guarantee is pinned here.
+
+    The fixtures carry an ``## Archived`` heading so that the allow-list is the
+    only thing keeping archived features out: were ``Archived`` added to the
+    allow-list, the merge would (wrongly) rebuild that section and place these
+    features into it — which is exactly what these tests forbid.
+    """
+
+    _MD_WITH_ARCHIVED_BLOCK = """\
+# My Features
+
+## In Progress
+| Feature | Owner | Notes |
+|---|---|---|
+| feat-a | alice | doing it |
+
+## Available
+| Feature | Notes |
+|---|---|
+| feat-b |  |
+
+## Archived
+| Feature | Notes |
+|---|---|
+| feat-z |  |
+"""
+
+    def test_archived_db_feature_without_existing_row_not_placed(self):
+        """A DB feature with status ``archived`` and no existing row is not
+        emitted into any rebuilt section of the output."""
+        db = {
+            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
+            "feat-b": _feat("feat-b", "available"),
+            "feat-z": _feat("feat-z", "archived"),
+            "feat-archived": _feat("feat-archived", "archived"),
+        }
+        result = _merge_features_md(self._MD_WITH_ARCHIVED_BLOCK, db)
+        assert "feat-archived" not in result
+
+    def test_archived_db_feature_removes_existing_available_row(self):
+        """A feature sitting in ## Available that the DB now marks ``archived``
+        is removed from the merged output: the rebuilt Available section drops
+        it, and no archived target section re-places it."""
+        db = {
+            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
+            "feat-b": _feat("feat-b", "archived"),  # was available, now archived
+            "feat-z": _feat("feat-z", "archived"),
+        }
+        result = _merge_features_md(self._MD_WITH_ARCHIVED_BLOCK, db)
+        assert "feat-b" not in result
