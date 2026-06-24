@@ -32,7 +32,7 @@ for skill in feature feature-requirements feature-plan feature-implement \
 done
 
 # Bin scripts. Each must be executable in the repo.
-for script in feature-html-to-md; do
+for script in feature-html-to-md doc-contract-lint; do
     src="$REPO_DIR/bin/$script"
     dst="$BIN_DIR/$script"
 
