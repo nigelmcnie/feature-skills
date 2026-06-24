@@ -602,6 +602,7 @@ def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
                 result.extend(_build_section_block(
                     "Parked", parked_block, all_rows, db_features, placed
                 ))
+                result.append("\n")  # blank line before the next heading (matches re-merge)
                 parked_synthesised = True
                 has_parked_block = True  # prevent end-of-doc fallback
 
