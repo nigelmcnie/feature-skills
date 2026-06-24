@@ -200,6 +200,20 @@ class TestParkedBlockSynthesis:
         assert after[0] == "| Feature | Notes |"
         assert after[1] == "|---|---|"
 
+    def test_synthesised_parked_section_separated_from_next_heading_by_blank_line(self):
+        """The synthesised ## Parked block ends with a blank line before the next
+        heading, matching every other section's spacing (else it runs straight into
+        ## Available in the committed features.md)."""
+        db = {
+            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
+            "feat-b": _feat("feat-b", "available"),
+            "feat-new": _feat("feat-new", "parked"),
+        }
+        result = _merge_features_md(_BASE_MD, db)
+        assert "\n\n## Available" in result
+        # And the last parked row is not glued to the next heading.
+        assert "| feat-new |  |\n## Available" not in result
+
     def test_no_parked_section_synthesised_when_none_in_db(self):
         db = {
             "feat-a": _feat("feat-a", "in_progress", owner="alice"),
