@@ -70,6 +70,9 @@ A clean exit (code 0) confirms the emitted HTML is fully grounded. If the lint r
 violations, resolve them before completing the authoring step — fix the class names in
 the section bodies and re-PUT, then re-run the lint.
 
-For opaque documents (synthesis / feedback forms) that legitimately use interactive-form
-chrome outside the content vocabulary, add `--allow-h2` and treat the lint as a structure
-check only.
+For opaque documents (synthesis / feedback forms) that legitimately keep a residual
+`<style>` for interactive-form chrome the contract has no vocabulary for, add
+`--allow-h2`. In that mode the lint allows `<h2>` headings and accepts any class defined
+in the document's own `<style>` block — so the form chrome passes — while a genuinely
+ungrounded class (one styled neither by the contract nor the doc's own `<style>`) still
+fails. So a correctly-converged opaque doc exits 0; a typo or stray class still trips it.
