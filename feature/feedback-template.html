@@ -28,51 +28,21 @@
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
 <title>FEATURE — Phase Feedback Synthesis #N</title>
+<link rel="stylesheet" href="/static/doc.css">
 <style>
-  :root {
-    --bg: #1c1917;
-    --surface: #292524;
-    --surface-muted: #1f1d1c;
-    --surface-warn: #3d2e0f;
-    --border: #44403c;
-    --border-warn: #92400e;
-    --accent: #f59e0b;
-    --text: #fafaf9;
-    --text-muted: #d6d3d1;
-    --text-faint: #a8a29e;
-    --code-bg: #1f1d1c;
-    --link: #93c5fd;
-  }
-  * { box-sizing: border-box; }
-  html { font-size: 20px; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: var(--text);
-    background: var(--bg);
-    line-height: 1.55;
-    font-size: 22px;
-    padding-bottom: 100px;
-  }
+  /* Layout container (doc.css handles body/typography) */
   .container { max-width: 1080px; margin: 0 auto; padding: 28px 32px; }
-  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
-  code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.92em; }
 
-  header.doc-header {
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 16px;
-    margin-bottom: 28px;
-  }
+  /* Header chrome not in doc.css */
   header.doc-header .header-content {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 24px;
   }
-  header.doc-header h1 { margin: 0 0 4px; font-size: 1.6rem; }
-  header.doc-header .subtitle { margin: 0; color: var(--text-muted); font-size: 1rem; }
   header.doc-header .meta { margin: 8px 0 0; color: var(--text-faint); font-size: 0.875rem; }
 
+  /* View toggle */
   .view-toggle {
     display: inline-flex;
     border: 1px solid var(--border);
@@ -93,8 +63,11 @@
   .view-btn.active { background: var(--accent); color: var(--bg); font-weight: 600; }
   .view-btn:hover:not(.active) { background: var(--surface-muted); color: var(--text); }
 
-  section.tier { margin-bottom: 36px; }
-  section.tier > h2 {
+  /* Tier sections */
+  #tier-needs-input, #tier-feedback, #tier-routine { margin-bottom: 36px; }
+  #tier-needs-input > h2,
+  #tier-feedback > h2,
+  #tier-routine > h2 {
     position: sticky;
     top: 0;
     margin: 0 0 16px;
@@ -107,7 +80,9 @@
     border-bottom: 1px solid var(--border);
     z-index: 10;
   }
-  section.tier > h2 .count {
+  #tier-needs-input h2 .count,
+  #tier-feedback h2 .count,
+  #tier-routine h2 .count {
     margin-left: 8px;
     color: var(--text-faint);
     font-weight: normal;
@@ -116,109 +91,11 @@
     font-size: 0.9rem;
   }
 
-  /* Top tier — needs input */
-  .tier-needs-input article.item {
-    background: var(--surface-warn);
-    border: 1px solid var(--border-warn);
-    border-left: 4px solid var(--accent);
-    border-radius: 6px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
-  }
-  /* Middle tier — feedback */
-  .tier-feedback article.item {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 20px;
-    margin-bottom: 12px;
-  }
-
-  article.item header {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  article.item .item-num {
-    color: var(--text-faint);
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
-    min-width: 1.5em;
-  }
-  article.item h3 { margin: 0; font-size: 1.05rem; line-height: 1.35; }
-  article.item .detail { color: var(--text); margin: 0 0 10px; }
-  article.item .detail p { margin: 0 0 6px; }
-  article.item .detail p:last-child { margin-bottom: 0; }
-  article.item .my-take { color: var(--text); margin: 0 0 14px; }
-  article.item .my-take .label { font-weight: 600; }
-
-  .your-thoughts {
-    margin-top: 12px;
-    border-top: 1px dashed var(--border);
-    padding-top: 12px;
-  }
-  .your-thoughts label {
-    display: block;
-    color: var(--text-faint);
-    font-size: 0.8rem;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  textarea {
-    display: block;
-    width: 100%;
-    min-height: 50px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px 10px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    line-height: 1.45;
-    background: var(--surface);
-    color: var(--text);
-    resize: vertical;
-  }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* JS-driven state for textarea with content */
   .your-thoughts textarea.has-content { border-color: var(--accent); background: #2a2118; }
 
-  /* Routine tier */
-  .tier-routine ul.routine-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background: var(--surface-muted);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .tier-routine li.routine-item {
-    display: grid;
-    grid-template-columns: 2em 1fr auto;
-    align-items: start;
-    gap: 12px;
-    padding: 10px 16px;
-    border-top: 1px solid var(--border);
-    font-size: 0.9rem;
-  }
-  .tier-routine li.routine-item:first-child { border-top: none; }
-  .tier-routine .item-num { color: var(--text-faint); font-variant-numeric: tabular-nums; font-weight: 600; }
-  .tier-routine .body { color: var(--text); }
-  .tier-routine .flag-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    padding: 2px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-  .tier-routine .flag-btn:hover { background: var(--surface); color: var(--text); }
-  .tier-routine .flag-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  .tier-routine .flag-input { grid-column: 2 / 4; margin-top: 6px; display: none; }
-  .tier-routine .flag-input.visible { display: block; }
-  .tier-routine .flag-input textarea { min-height: 40px; font-size: 0.9rem; }
+  /* Flag detail hidden by default; shown when checkbox checked */
+  .flag-detail { display: none; }
 
   /* Sticky footer */
   footer.actions {
@@ -238,7 +115,7 @@
   footer.actions .status { color: var(--text-muted); font-size: 0.9rem; }
   footer.actions .status .count { font-weight: 600; color: var(--text); }
 
-  /* Slideshow nav (in footer) */
+  /* Slideshow nav */
   .slideshow-nav { display: none; }
   body.view-mode-slideshow .slideshow-nav {
     display: flex;
@@ -265,32 +142,36 @@
   }
   .slideshow-nav .progress #current-tier { color: var(--accent); font-weight: 600; }
 
-  /* Slideshow mode: hide everything except current item */
-  body.view-mode-slideshow section.tier > h2 { display: none; }
-  body.view-mode-slideshow section.tier-routine { display: none; }
-  body.view-mode-slideshow section.tier { margin-bottom: 0; }
-  body.view-mode-slideshow article.item { display: none; }
-  body.view-mode-slideshow article.item.slideshow-current {
+  /* Slideshow mode */
+  body.view-mode-slideshow #tier-needs-input > h2,
+  body.view-mode-slideshow #tier-feedback > h2,
+  body.view-mode-slideshow #tier-routine > h2 { display: none; }
+  body.view-mode-slideshow #tier-routine { display: none; }
+  body.view-mode-slideshow #tier-needs-input,
+  body.view-mode-slideshow #tier-feedback,
+  body.view-mode-slideshow #tier-routine { margin-bottom: 0; }
+  body.view-mode-slideshow .feedback-item { display: none; }
+  body.view-mode-slideshow .feedback-item.slideshow-current {
     display: block;
     max-width: 780px;
     margin: 48px auto !important;
     padding: 32px 36px;
   }
-  body.view-mode-slideshow article.item.slideshow-current h3 { font-size: 1.35rem; line-height: 1.35; }
-  body.view-mode-slideshow article.item.slideshow-current .item-num { font-size: 1.1rem; }
-  body.view-mode-slideshow article.item.slideshow-current .detail,
-  body.view-mode-slideshow article.item.slideshow-current .my-take { font-size: 1.02rem; }
-  body.view-mode-slideshow article.item.slideshow-current .your-thoughts textarea {
+  body.view-mode-slideshow .feedback-item.slideshow-current h3 { font-size: 1.35rem; line-height: 1.35; }
+  body.view-mode-slideshow .feedback-item.slideshow-current .item-num { font-size: 1.1rem; }
+  body.view-mode-slideshow .feedback-item.slideshow-current .detail,
+  body.view-mode-slideshow .feedback-item.slideshow-current .my-take { font-size: 1.02rem; }
+  body.view-mode-slideshow .feedback-item.slideshow-current .your-thoughts textarea {
     min-height: 100px;
     font-size: 1rem;
   }
-  /* Slideshow routine slide — appears as the last slide */
-  body.view-mode-slideshow section.tier-routine.slideshow-current-routine {
+  /* Slideshow: routine appears as the last slide */
+  body.view-mode-slideshow #tier-routine.slideshow-current-routine {
     display: block;
     max-width: 780px;
     margin: 48px auto;
   }
-  body.view-mode-slideshow section.tier-routine.slideshow-current-routine > h2 {
+  body.view-mode-slideshow #tier-routine.slideshow-current-routine > h2 {
     display: block;
     position: static;
     background: transparent;
@@ -303,6 +184,7 @@
     padding: 0 0 8px;
   }
 
+  /* Copy button */
   footer.actions button.copy-btn {
     background: transparent;
     color: var(--text-muted);
@@ -318,7 +200,7 @@
 </style>
 </head>
 <body>
-<div class="container">
+<div class="container synthesis-doc">
 
 <!--
   REPLACE: title, subtitle, and meta line.
@@ -340,15 +222,14 @@
 
 <!--
   TOP TIER — Needs your input.
-  One <article class="item"> per item that genuinely needs the user's call.
-  Mirror the structure of the example below: header with item-num + h3, then
-  .detail with paragraph(s), then .my-take, then the .your-thoughts textarea
-  (always blank — the user fills it in).
+  One <article class="feedback-item"> per item that genuinely needs the user's call.
+  Mirror the structure below: header with item-num + h3, then .detail, .my-take,
+  and .your-thoughts textarea (always blank — the user fills it in).
 -->
-<section class="tier tier-needs-input">
+<section id="tier-needs-input">
 <h2>Needs your input <span class="count">(N)</span></h2>
 
-<article class="item" data-item="1">
+<article class="feedback-item" data-item="1">
   <header>
     <span class="item-num">1.</span>
     <h3>EXAMPLE — replace with the real item title</h3>
@@ -370,14 +251,13 @@
 <!--
   MIDDLE TIER — Feedback.
   Most items typically live here. Same structure as top-tier items but
-  visually less heavy (white background, tighter padding). Optional
-  category groupings via additional <h3> elements within the section if
-  you have >5 items and they cluster naturally (Bugs / Missed scope / etc.).
+  visually less heavy. Optional category groupings via <h3> elements if
+  you have >5 items that cluster naturally (Bugs / Missed scope / etc.).
 -->
-<section class="tier tier-feedback">
+<section id="tier-feedback">
 <h2>Feedback <span class="count">(N)</span></h2>
 
-<article class="item" data-item="2">
+<article class="feedback-item" data-item="2">
   <header>
     <span class="item-num">2.</span>
     <h3>EXAMPLE — replace with the real item title</h3>
@@ -399,18 +279,18 @@
 <!--
   BOTTOM TIER — Routine.
   Items that will be applied unless the user flags any. One <li> per item.
-  Each li: item-num, body (description + take in one line), flag button,
-  hidden flag-input that appears when the flag button is clicked.
+  Each li: item-num, body (description + take in one line), flag label + checkbox,
+  flag-detail textarea that appears when the checkbox is checked.
 -->
-<section class="tier tier-routine">
+<section id="tier-routine">
 <h2>Routine <span class="count">(N) — auto-apply unless flagged</span></h2>
 <ul class="routine-list">
 
-<li class="routine-item" data-item="3">
+<li class="syn-routine-item" data-item="3">
   <span class="item-num">3.</span>
   <span class="body">EXAMPLE: one-line description of the routine item. <em>Brief take inline if useful.</em></span>
-  <button class="flag-btn" data-item="3">Flag</button>
-  <div class="flag-input"><textarea data-item="3" placeholder="Why are you flagging this?"></textarea></div>
+  <label class="flag-label"><input type="checkbox" data-item="3"> Flag</label>
+  <div class="flag-detail"><textarea data-item="3" placeholder="Why are you flagging this?"></textarea></div>
 </li>
 
 </ul>
@@ -446,29 +326,28 @@ document.querySelectorAll('.your-thoughts textarea').forEach(ta => {
   });
 });
 
-document.querySelectorAll('.tier-routine .flag-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const item = btn.dataset.item;
-    const input = document.querySelector(`.tier-routine li[data-item="${item}"] .flag-input`);
-    input.classList.toggle('visible');
-    btn.classList.toggle('active');
-    if (input.classList.contains('visible')) {
-      input.querySelector('textarea').focus();
+document.querySelectorAll('.flag-label input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const detail = cb.closest('.syn-routine-item').querySelector('.flag-detail');
+    if (cb.checked) {
+      detail.style.display = 'block';
+      detail.querySelector('textarea').focus();
     } else {
-      input.querySelector('textarea').value = '';
+      detail.style.display = 'none';
+      detail.querySelector('textarea').value = '';
     }
     updateCounts();
   });
 });
 
-document.querySelectorAll('.tier-routine .flag-input textarea').forEach(ta => {
+document.querySelectorAll('.flag-detail textarea').forEach(ta => {
   ta.addEventListener('input', updateCounts);
 });
 
 function updateCounts() {
   const filled = Array.from(document.querySelectorAll('.your-thoughts textarea'))
     .filter(ta => ta.value.trim().length > 0).length;
-  const flagged = Array.from(document.querySelectorAll('.tier-routine .flag-btn.active')).length;
+  const flagged = Array.from(document.querySelectorAll('.flag-label input[type="checkbox"]:checked')).length;
   document.getElementById('filled-count').textContent = filled;
   document.getElementById('flagged-count').textContent = flagged;
 }
@@ -479,10 +358,10 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
     responses[ta.dataset.item] = ta.value.trim();
   });
   const routineFlags = {};
-  document.querySelectorAll('.tier-routine .flag-btn.active').forEach(btn => {
-    const item = btn.dataset.item;
-    const input = document.querySelector(`.tier-routine li[data-item="${item}"] .flag-input textarea`);
-    routineFlags[item] = input.value.trim();
+  document.querySelectorAll('.flag-label input[type="checkbox"]:checked').forEach(cb => {
+    const item = cb.dataset.item;
+    const detail = cb.closest('.syn-routine-item').querySelector('.flag-detail textarea');
+    routineFlags[item] = detail.value.trim();
   });
 
   const payload = { doc: docId, responses, routine_flags: routineFlags };
@@ -500,8 +379,8 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
 });
 
 // View mode + slideshow navigation
-const items = Array.from(document.querySelectorAll('.tier-needs-input article.item, .tier-feedback article.item'));
-const routineSection = document.querySelector('.tier-routine');
+const items = Array.from(document.querySelectorAll('#tier-needs-input .feedback-item, #tier-feedback .feedback-item'));
+const routineSection = document.getElementById('tier-routine');
 const totalSlides = items.length + (routineSection ? 1 : 0);
 let currentIdx = 0;
 let viewMode = 'list';
@@ -534,8 +413,8 @@ function showItem(idx) {
     tier = 'Routine';
   } else {
     const item = items[idx];
-    tier = item.closest('.tier-needs-input') ? 'Needs your input' :
-           item.closest('.tier-feedback') ? 'Feedback' : '';
+    tier = item.closest('#tier-needs-input') ? 'Needs your input' :
+           item.closest('#tier-feedback') ? 'Feedback' : '';
   }
   document.getElementById('current-tier').textContent = tier;
 }
