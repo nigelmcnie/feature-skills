@@ -108,10 +108,15 @@ that name.
     repo's tool to create the worktree under `.claude/worktrees/`, then
     call `EnterWorktree` with `path=<that worktree>` to switch the session
     into it.
-  - **Otherwise, use the standard flow**: `EnterWorktree` with name
-    `<FEATURE>-p<N>`. It branches fresh from `origin/<default-branch>`
-    (the `worktree.baseRef` default), so you start from the latest main —
-    including prior merged phases — with no separate pull.
+  - **Otherwise, use the standard flow**: first fetch to ensure
+    `origin/<default-branch>` is genuinely up to date (prior merged phases
+    may not be in the local fetch cache yet):
+    ```bash
+    git fetch origin
+    ```
+    Then call `EnterWorktree` with name `<FEATURE>-p<N>`. It branches fresh
+    from `origin/<default-branch>` (the `worktree.baseRef` default), so you
+    start from the latest main — including prior merged phases.
 
     **Exception — no remote** (`git remote -v` is empty): `EnterWorktree`'s
     default `fresh` mode requires an origin and will fail. Instead, create the
