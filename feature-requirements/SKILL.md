@@ -114,9 +114,12 @@ Read the following:
 curl -fsS http://127.0.0.1:8800/api/manifests/requirements
 ```
 
-Use the returned section keys exactly.
+Use the returned section keys exactly. Also read `presentation.stylesheet_url` from the
+response and follow `~/.claude/skills/feature/contract-grounding.md` to fetch the
+presentation contract and ground all emitted HTML against it.
 
-**2. Render the requirements** by assembling section HTML bodies.
+**2. Render the requirements** by assembling section HTML bodies, grounded against the
+contract vocabulary.
 
 **3. PUT the document**:
 
@@ -129,6 +132,16 @@ curl -fsS -X PUT \
 
 The response includes `{"document_id": N, "url": "/doc/N", ...}`.
 Note the `document_id` for later use in polling and comments endpoints.
+
+**4. Run the lint gate** after the PUT succeeds:
+
+```bash
+doc-contract-lint --webapp http://127.0.0.1:8800 \
+  $PROJECT/$FEATURE/requirements/1
+```
+
+A clean exit (0) means the doc is fully grounded. If violations are reported, fix the
+class names in the section bodies, re-PUT, and re-run until the lint is clean.
 
 Use `?dry_run=true` if you want to validate the section keys before committing:
 
@@ -152,28 +165,26 @@ A good requirements doc contains:
 - **Problem** (`id="problem"`): what's broken or missing, with concrete
   examples.
 - **Vision** (`id="vision"`): one-sentence description of the solved
-  state, wrapped in `<p class="vision-statement">`.
-- **User stories** (`id="user-stories"`): rendered as
-  `<ol class="stories">` with `<li>` cards. Each story carries
-  `<div class="actor">As a [role]</div>`,
-  `<div class="want">I want [capability]</div>`, and
-  `<div class="scenario">Concrete situation</div>` — every story needs a
-  concrete scenario, not just abstract desire.
+  state. Use the contract's callout vocabulary for the visual treatment
+  (see `doc.css` for the class).
+- **User stories** (`id="user-stories"`): a list of story cards. Each
+  card carries an actor role, a capability want, and a concrete scenario
+  — every story needs a concrete scenario, not just abstract desire.
+  Use the contract's story vocabulary (see `doc.css`).
 - **Data model** (`id="data-model"`, if relevant): what's stored and
   how it relates to the existing schema; relationships, not exact column
   types.
 - **Technical approach** (`id="technical-approach"`): high-level how, not
   implementation detail.
-- **Alternatives considered** (`id="alternatives"`, optional): rendered
-  as `<ol class="alternatives">`; each `<li>` has `.alt-title`,
-  `.alt-source` (inline source citation — "discussed with user", "from
-  design doc X"), and `.alt-reason`. Skip the section entirely if the
-  user pre-chose the approach and no real alternatives came up — don't
-  fabricate to fill space.
-- **Delivery phases** (`id="delivery-phases"`): each phase as a
-  `<div class="phase">` containing a `<div class="phase-header">` (badge
-  + h3) and prose. Ordered increments that each deliver testable value;
-  each phase becomes one MR.
+- **Alternatives considered** (`id="alternatives"`, optional): a list of
+  alternatives with a title, a source citation, and a reason. Skip the
+  section entirely if the user pre-chose the approach and no real
+  alternatives came up — don't fabricate to fill space. Use the
+  contract's alternatives vocabulary (see `doc.css`).
+- **Delivery phases** (`id="delivery-phases"`): each phase uses the
+  contract's phase vocabulary (badge + h3 header, followed by prose —
+  see `doc.css` for the class names). Ordered increments that each
+  deliver testable value; each phase becomes one MR.
 - **Indicative implementation notes** (`id="indicative-notes"`,
   optional, at the bottom): plan-level detail worth carrying forward
   without polluting the requirements body — see "Requirements vs plan"

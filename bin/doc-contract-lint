@@ -1,0 +1,182 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "beautifulsoup4>=4.12",
+#   "tinycss2>=1.3",
+# ]
+# ///
+"""
+doc-contract-lint — Verify HTML against the webapp's presentation contract (doc.css).
+
+TARGET:
+  -                           read from stdin
+  project/feature/type/N      logical key (exactly 3 slashes, no '.' or newline)
+  <path>                      HTML file path
+
+Exit codes:
+  0  clean (no violations)
+  1  violations found
+  2  usage / fetch error
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+from bs4 import BeautifulSoup
+import tinycss2
+
+
+def extract_contract_classes(css_text: str) -> set[str]:
+    classes: set[str] = set()
+    rules = tinycss2.parse_stylesheet(css_text, skip_comments=True, skip_whitespace=True)
+    _collect_classes(rules, classes)
+    return classes
+
+
+def _collect_classes(rules: list, classes: set[str]) -> None:
+    for rule in rules:
+        if rule.type == 'qualified-rule':
+            prelude_text = tinycss2.serialize(rule.prelude)
+            for m in re.finditer(r'\.([A-Za-z_][\w-]*)', prelude_text):
+                classes.add(m.group(1))
+        elif rule.type == 'at-rule' and rule.content is not None:
+            inner_rules = tinycss2.parse_rule_list(rule.content)
+            _collect_classes(inner_rules, classes)
+
+
+def extract_html_classes(html: str) -> set[str]:
+    soup = BeautifulSoup(html, 'html.parser')
+    classes: set[str] = set()
+    for el in soup.find_all(True):
+        for cls in (el.get('class') or []):
+            classes.add(cls)
+    return classes
+
+
+def find_section_h2s(html: str) -> list[str]:
+    soup = BeautifulSoup(html, 'html.parser')
+    return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
+
+
+def fetch_contract(webapp: str, override: str | None) -> str:
+    if override:
+        return Path(override).read_text()
+    url = webapp.rstrip('/') + '/static/doc.css'
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return resp.read().decode()
+    except Exception as exc:
+        print(f'error: cannot fetch contract from {url}: {exc}', file=sys.stderr)
+        sys.exit(2)
+
+
+def fetch_doc(webapp: str, key: str) -> tuple[str, str]:
+    url = webapp.rstrip('/') + '/api/documents/' + key
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        print(f'error: fetching document {key!r} returned HTTP {exc.code}', file=sys.stderr)
+        sys.exit(2)
+    except Exception as exc:
+        print(f'error: cannot fetch document {key!r}: {exc}', file=sys.stderr)
+        sys.exit(2)
+
+    extra_css: str = data.get('extra_css', '') or ''
+
+    if data.get('shape') == 'opaque':
+        return data.get('body', ''), extra_css
+
+    # Sections doc: concatenate all section bodies
+    bodies = ''.join(s['body'] for s in data.get('sections', []))
+    return bodies, extra_css
+
+
+def lint(
+    html: str,
+    contract_css: str,
+    extra_css: str = '',
+    allow_h2: bool = False,
+) -> list[str]:
+    contract_classes = extract_contract_classes(contract_css)
+    extra_classes = extract_contract_classes(extra_css) if extra_css.strip() else set()
+    allowed = contract_classes | extra_classes
+
+    html_classes = extract_html_classes(html)
+    violations: list[str] = []
+
+    for cls in sorted(html_classes - allowed):
+        violations.append(f'unknown class: .{cls}')
+
+    if not allow_h2:
+        for text in find_section_h2s(html):
+            label = text[:60] + '…' if len(text) > 60 else text
+            violations.append(f'section-level <h2>: {label!r}')
+
+    return violations
+
+
+def is_logical_key(target: str) -> bool:
+    # Logical keys have exactly 3 slashes and no '.' or newline
+    return target.count('/') == 3 and '.' not in target and '\n' not in target
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description='Lint HTML against the doc.css presentation contract.',
+    )
+    parser.add_argument(
+        '--webapp',
+        default='http://127.0.0.1:8800',
+        help='Webapp base URL (default: http://127.0.0.1:8800)',
+    )
+    parser.add_argument(
+        '--contract',
+        default=None,
+        metavar='PATH',
+        help='Path to a local CSS file (overrides --webapp fetch)',
+    )
+    parser.add_argument(
+        '--allow-h2',
+        action='store_true',
+        help='Allow <h2> in content (use for opaque/synthesis docs)',
+    )
+    parser.add_argument(
+        'target',
+        metavar='TARGET',
+        help='HTML file path, "-" for stdin, or logical key (project/feature/type/N)',
+    )
+    args = parser.parse_args()
+
+    contract_css = fetch_contract(args.webapp, args.contract)
+
+    extra_css = ''
+    if args.target == '-':
+        html = sys.stdin.read()
+    elif is_logical_key(args.target):
+        html, extra_css = fetch_doc(args.webapp, args.target)
+    else:
+        try:
+            html = Path(args.target).read_text()
+        except OSError as exc:
+            print(f'error: cannot read file {args.target!r}: {exc}', file=sys.stderr)
+            sys.exit(2)
+
+    violations = lint(html, contract_css, extra_css=extra_css, allow_h2=args.allow_h2)
+
+    if violations:
+        for v in violations:
+            print(v, file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
