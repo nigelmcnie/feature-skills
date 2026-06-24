@@ -85,8 +85,21 @@ data-model, contract, file-structure, verification, qc, checklist)
 plus a `repeated_prefixes: ["phase-"]` — each delivery phase is a
 `phase-N` section key.
 
+Also read `presentation.stylesheet_url` from the response and follow
+`~/.claude/skills/feature/contract-grounding.md` to fetch the presentation
+contract and ground all emitted HTML against it.
+
+**Grounding fence for plan-specific structure:** The plan's `checklist`
+section uses `data-checklist-item="phase-<N>-<step>"` IDs and the
+single-line `<li><input>` adjacency contract (see "Checklist format"
+below). These are **functional, not presentational** — they are read
+by `feature-implement` to detect and tick off items. Do not alter
+`data-checklist-item` attributes or the `<li><input>` single-line
+shape when grounding. Only the presentation classes on other elements
+are in scope.
+
 **2. Render the plan** by assembling section HTML bodies following the
-structure described below.
+structure described below, grounded against the contract vocabulary.
 
 **3. PUT the document**:
 

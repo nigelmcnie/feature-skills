@@ -121,7 +121,11 @@ curl -fsS http://127.0.0.1:8800/api/manifests/context
 ```
 
 The manifest returns a list of sections with their keys. Use those keys
-exactly — mismatched keys are rejected.
+exactly — mismatched keys are rejected. Also read `presentation.stylesheet_url`
+from the response and follow `~/.claude/skills/feature/contract-grounding.md`
+to fetch the presentation contract and ground all emitted HTML against it.
+Context docs use plain HTML tags (`<p>`, `<ul>`, `<dl>`) so grounding is
+mostly structural awareness — no special class vocabulary needed.
 
 **2. Assemble section content** by distilling the conversation:
 
