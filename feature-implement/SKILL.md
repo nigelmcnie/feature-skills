@@ -357,9 +357,18 @@ Don't loop on escalation. The human takes it from here.
 
 ## Step 7: Verification guidance
 
-Tell the user what to manually verify to confirm this phase is working.
-Even if automated tests pass, give the human concrete steps:
-- What to run or observe
+Before telling the user what to check, consider what live environment state
+the verification assumes and close the gap yourself where safe:
+
+- If the phase affects a service or process that reads from the repo (pull,
+  reinstall, restart), do it now — don't list it as a user step. If you're
+  unsure whether it's safe (shared service, running transactions, destructive
+  deploy), ask first.
+- For other state-change steps (migrations, cache flush, re-index): attempt
+  them directly if non-destructive and reversible; ask if unsure.
+
+Then give the user what's left — the things only a human can do:
+- A direct link or command to check the result (don't make them look it up)
 - What the expected outcome looks like
 - Any specific channels, dashboards, or CLI commands to check
 

@@ -144,6 +144,13 @@ A good implementation plan contains:
   If a verification step requires live credentials, interactive auth, or
   an external service, note it inline: `(Note: requires live credentials
   — perform manually if agent cannot obtain them)`.
+  For browser-visible results, write a specific DOM or network assertion
+  (URL + what the DOM should contain) rather than "manually confirm in the
+  browser" — that form is automatable by Playwright MCP if available, and
+  gives the human something precise to check if not. Reserve "manually
+  confirm" only for genuinely subjective visual checks that cannot be
+  expressed as assertions. If Playwright MCP is available at plan time,
+  write these as explicit Playwright steps.
 - **Checklist**: a flat checklist of all steps across all phases at
   the bottom of the document. The implementing agent checks items off
   as it works.
