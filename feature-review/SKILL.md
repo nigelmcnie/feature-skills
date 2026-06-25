@@ -83,13 +83,21 @@ work and sweep all the intervening history into the review range. Find the
 earliest implementation commit for this feature and use its parent:
 
 ```bash
-# Earliest phase commit (the feat message survives squash/rebase and merge styles):
-EARLIEST=$(git log main --reverse --format=%H --grep "feat(<FEATURE>)" | head -1)
-# Fall back to the earliest phase-branch merge if no feat message is on main:
-[ -z "$EARLIEST" ] && EARLIEST=$(git log main --reverse --format=%H --merges \
-    --grep "<FEATURE>-p" | head -1)
+# Earliest phase-branch merge — the branch name carries the full feature name, so
+# this is robust to the commit *scope* convention (agents often commit
+# `feat(<component>): …`, e.g. `feat(tracker): …`, not `feat(<feature>): …`).
+EARLIEST=$(git log main --reverse --format=%H --merges --grep "<FEATURE>-p" | head -1)
+# Fall back to a feat-scoped commit only if no phase-branch merge is on main
+# (squash/rebase flows that don't preserve the merge): try the feature name,
+# then nothing — if both miss, ask the user (below).
+[ -z "$EARLIEST" ] && EARLIEST=$(git log main --reverse --format=%H --grep "feat(<FEATURE>)" | head -1)
 BASELINE=$(git rev-parse "$EARLIEST^")
 ```
+
+Lead with the phase-branch merge: the `feat(<FEATURE>)` grep silently returns
+empty whenever the implementing agent scoped commits to a component
+(`feat(tracker): …`) rather than the feature name, so it's the less reliable
+of the two and belongs second.
 
 The diff range for review is `$BASELINE..main`. Show the user the
 diff stat and log:

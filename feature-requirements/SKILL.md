@@ -260,6 +260,12 @@ Prompt for the reviewer:
 > - Risk: which requirements are the hardest to reverse or have the widest
 >   blast radius (stored user data, security, trust boundaries)?
 >
+> When any point you raise rests on how existing code behaves, read and cite
+> that code rather than inferring it — and if the relevant code lives in
+> another repo, say so and read it there (ask for the path if you don't have
+> it) rather than asserting its behaviour. Mark any behaviour you could not
+> verify as **unverified** instead of stating it as fact.
+>
 > Be specific. Reference sections by name. Focus on substance, not style.
 
 The user may leave click-to-comment annotations inline in
@@ -283,6 +289,15 @@ For each piece of reviewer feedback, decide your take:
      choice.
 
 ### Triage
+
+**Before bucketing, verify any reviewer claim about how existing code
+behaves.** When a finding's force depends on a factual premise about the
+current code (especially code the reviewer flagged as unverified, or code in
+another repo), check it against the source first. Do not escalate a decision
+to **Needs your input** on an unverified premise — a wrong premise rubber-
+stamped into requirements is expensive. If verifying is impractical, surface
+the item as "verify X, then decide" rather than presenting the premise as
+fact.
 
 Items get bucketed into three tiers:
 
