@@ -127,7 +127,7 @@ contract vocabulary.
 curl -fsS -X PUT \
   "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
   -H 'Content-Type: application/json' \
-  -d '{"sections": {"problem": "<p>…</p>", "vision": "…", …}, "actor": "agent"}'
+  -d '{"sections": {"summary": "<p>…</p>", "vision": "…", …}, "actor": "agent"}'
 ```
 
 The response includes `{"document_id": N, "url": "/doc/N", ...}`.
@@ -159,11 +159,9 @@ A good requirements doc contains:
 
 - **Summary** (`id="summary"`): the lead section — explain what we're
   implementing simply, in plain language with concrete examples, written
-  for someone who hasn't read the rest of the doc. No jargon. This is
-  your answer to "explain what we're implementing simply, with examples",
-  and it comes before the Problem so the simple framing lands first.
-- **Problem** (`id="problem"`): what's broken or missing, with concrete
-  examples.
+  for someone who hasn't read the rest of the doc. Cover what's broken or
+  missing as part of this framing. No jargon. This is your answer to
+  "explain what we're implementing simply, with examples".
 - **Vision** (`id="vision"`): one-sentence description of the solved
   state. Use the contract's callout vocabulary for the visual treatment
   (see `doc.css` for the class).
@@ -200,7 +198,7 @@ to put in it. Don't pad.
 Requirements answer **what** and **why**. The plan answers **how**.
 
 **Belongs in requirements:**
-- Problem and desired outcome.
+- What's being built, what's broken or missing, and the desired outcome.
 - User-visible behaviour and constraints.
 - Data model relationships (that something is stored, not the schema).
 - Architectural shape at "we'll do X, not Y" level.
@@ -499,7 +497,7 @@ suggestions land in **alternatives** or as inline notes.
 curl -fsS -X PUT \
   "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
   -H 'Content-Type: application/json' \
-  -d '{"sections": {"problem": "…", "design-notes": "…", …}, "actor": "agent"}'
+  -d '{"sections": {"summary": "…", "design-notes": "…", …}, "actor": "agent"}'
 ```
 
 The feedback synthesis doc is transient (it served its purpose when
