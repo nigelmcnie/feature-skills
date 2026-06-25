@@ -437,11 +437,14 @@ implement", or similar:
        docs/features/$FEATURE/plan.md
    ```
 
-   If the export ran, stage and commit the file, then push:
+   If the export ran, stage and commit the file, then push.
+   **Scope the commit with an explicit pathspec** (`git commit -- <path>`):
+   in a shared working tree a concurrent agent may have staged unrelated
+   files, and a bare `git commit` would sweep them into your commit.
 
    ```bash
    git add docs/features/$FEATURE/plan.md
-   git commit -m "docs: $FEATURE plan"
+   git commit -m "docs: $FEATURE plan" -- docs/features/$FEATURE/plan.md
    git push
    ```
 

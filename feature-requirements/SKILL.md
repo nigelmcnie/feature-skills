@@ -557,11 +557,15 @@ When the user signals approval — any of: "looks good", "approved",
        features.md
    ```
 
-   If either export ran, stage and commit only the exported files, then push:
+   If either export ran, stage and commit only the exported files, then push.
+   **Scope the commit with an explicit pathspec** (`git commit -- <paths>`):
+   in a shared working tree a concurrent agent may have staged unrelated
+   files, and a bare `git commit` would sweep them into your commit.
 
    ```bash
    git add docs/features/$FEATURE/requirements.md features.md  # as applicable
-   git commit -m "docs: $FEATURE requirements"
+   git commit -m "docs: $FEATURE requirements" -- \
+       docs/features/$FEATURE/requirements.md features.md  # as applicable
    git push
    ```
 
