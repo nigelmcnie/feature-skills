@@ -174,11 +174,13 @@ sections back:
    IDs are stable — don't pattern-match by item text.
 
 3. PUT all sections back with the updated checklist:
+   `sections` must be a JSON **object keyed by section key** — NOT an
+   array like the GET response returns.
    ```bash
    curl -fsS -X PUT \
      "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
      -H 'Content-Type: application/json' \
-     -d '{"sections": {<all sections with updated checklist>}, "actor": "agent"}'
+     -d '{"sections": {"overview": "...", "checklist": "...", "phase-1": "..."}, "actor": "agent"}'
    ```
 
 **HTML plan file** (legacy — only when the plan was read from the
@@ -368,7 +370,9 @@ the verification assumes and close the gap yourself where safe:
 - If the phase affects a service or process that reads from the repo (pull,
   reinstall, restart), do it now — don't list it as a user step. If you're
   unsure whether it's safe (shared service, running transactions, destructive
-  deploy), ask first.
+  deploy), ask first. For uv editable installs, pull the main checkout
+  **before** restarting — the service reads from the editable source
+  directory, so restart without pull serves stale code.
 - For other state-change steps (migrations, cache flush, re-index): attempt
   them directly if non-destructive and reversible; ask if unsure.
 
