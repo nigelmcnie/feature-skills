@@ -313,35 +313,26 @@ the feedback to address (there is no synthesis doc to read).
 You're on `main` here, so feature-iterate's Step 0.5 will isolate the
 fixes in a worktree by default — that's intended; it keeps the applied
 changes off the shared tree. The fixes then land via an iterate MR, so
-"mark shipped" (Step 10) waits for that MR to merge, exactly as
-feature-iterate's wrap-up describes.
+shipping waits for that MR to merge: you do **not** reach Step 10 in this
+session. feature-iterate's wrap-up points you at `/feature-ship <feature>`
+on main once the MR merges — the lightweight re-verify-and-ship, not a
+full re-review (this review already happened).
 
 ## Step 10: Mark shipped
 
-When the review cycle is complete with no outstanding items — either
-the initial review had no findings, or the user signals they are
-satisfied after iterations ("looks good", "all done", "ship it",
-"nothing else", or similar):
+This applies **only when the review converged with no outstanding items
+this session** — the initial review had no findings, or the user signals
+satisfaction after iterations that landed on `main` ("looks good", "all
+done", "ship it", "nothing else", or similar). If Step 9 spun up an
+iterate MR that hasn't merged yet, you do **not** ship here — see Step 9.
 
-Call the ship API to move this feature to Done:
+Shipping is owned by `feature-ship`, so the logic lives in one place. You
+are already on main, with phases verified (Step 3) and QC green (Step 6),
+so jump straight to its **Step 4 (Mark shipped)** and skip its Steps 1–3
+(they'd duplicate what you just did). **Do NOT use the Skill tool to
+invoke `/feature-ship`** — it sets `disable-model-invocation: true`,
+which blocks the Skill tool. Read `~/.claude/skills/feature-ship/SKILL.md`
+and execute its Step 4 inline: the ship API call (with a one-or-two
+sentence outcome summary) plus the synthesis-doc archive.
 
-```bash
-curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/ship" \
-  -H 'Content-Type: application/json' \
-  -d '{"outcome": "Shipped. …one or two sentence summary of what landed…"}'
-```
-
-A 200 response means the feature is marked Done. If the webapp is
-unreachable, skip silently.
-
-Archive any leftover synthesis docs from older standalone review rounds
-(the inline-triage flow writes no synthesis doc, so this is normally a
-no-op):
-
-```bash
-mkdir -p ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive
-mv ~/.claude/feature-docs/$PROJECT/<FEATURE>/review-feedback-*.html \
-   ~/.claude/feature-docs/$PROJECT/<FEATURE>/.feedback-archive/ 2>/dev/null || true
-```
-
-Tell the user the feature is marked shipped.
+Then tell the user the feature is marked shipped.

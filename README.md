@@ -16,6 +16,7 @@ workflow: requirements → plan → implement → review → iterate.
 | `feature-qa` | Run the project's quality control checks |
 | `feature-review` | Review the merged implementation on `main` |
 | `feature-iterate` | Address review feedback |
+| `feature-ship` | Re-verify the merged state on `main` and mark the feature Done |
 | `feature-retro` | Retro on how the *process* went; surface workflow improvements |
 
 Most skills set `disable-model-invocation: true` and are invoked via slash
@@ -48,6 +49,7 @@ script is safe.
 /feature-implement <name>      # implement one phase (re-invoke per phase)
 /feature-review <name>         # review after all phases merged
 /feature-iterate <name>        # address review feedback
+/feature-ship <name>           # re-verify merged main and mark Done (after an iterate MR merges)
 /feature-retro <name>          # retro the process at end of a session
 ```
 

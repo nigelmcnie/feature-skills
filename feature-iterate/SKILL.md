@@ -354,19 +354,20 @@ Otherwise — re-review addressed, or the user signals satisfaction
 ("looks good", "all done", "ship it", "nothing else", or similar):
 
 - **If the current branch is `main`** (the Step 0.5 direct-commit
-  path): re-run the mark-shipped procedure now. **Do NOT use the
-  Skill tool to invoke `/feature-review`** — it sets
-  `disable-model-invocation: true`, which blocks the Skill tool. Read
-  `~/.claude/skills/feature-review/SKILL.md` Step 10 ("Mark shipped")
-  and execute it inline. Skip the earlier steps of feature-review —
-  the re-review already happened in Step 4 above; you don't need to
-  rerun verification.
+  path): mark shipped now. Shipping is owned by `feature-ship`; you've
+  already re-verified in Step 4 above, so jump straight to its **Step 4
+  (Mark shipped)** and skip its Steps 1–3. **Do NOT use the Skill tool
+  to invoke `/feature-ship`** — it sets `disable-model-invocation: true`,
+  which blocks the Skill tool. Read `~/.claude/skills/feature-ship/SKILL.md`
+  and execute its Step 4 inline (the ship API call + synthesis-doc
+  archive).
 - **If the current branch is `features/<FEATURE>-iterate-N`** (open
   iteration MR): the MR has to merge before shipping. Tell the user:
 
-  > Once this iteration's MR has merged, run `/feature-review <FEATURE>`
-  > on main — it'll re-verify against the merged state and run the
-  > mark-shipped procedure if everything's clean.
+  > Once this iteration's MR has merged, run `/feature-ship <FEATURE>`
+  > on main — it re-verifies the merged state and marks the feature Done.
+  > (Not `/feature-review` — the review already happened; ship is the
+  > lightweight tail, no full re-review.)
 
   Don't try to mark shipped from a branch.
 
