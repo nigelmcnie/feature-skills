@@ -449,10 +449,13 @@ implement", or similar:
    ```
 
    If `[export].plan` is absent or `"none"`, skip.
-3. Tell the user:
+3. Hand off to implementation. Emit an `agent-handoff` (see
+   `docs/handoff-protocol.md`): command `/feature-implement <FEATURE>`,
+   model **Sonnet**, `when: now` — the approval gate just passed. With no
+   handoff mechanism defined this renders to the developer as:
 
    > Plan approved. When you're ready to implement, switch to your Sonnet session and run:
    >
    > `/feature-implement <FEATURE>`
 
-Do not invoke `/feature-implement` yourself.
+Either way, do not invoke `/feature-implement` yourself in this session.

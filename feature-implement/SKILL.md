@@ -384,17 +384,28 @@ Then give the user what's left — the things only a human can do:
 Keep this brief and actionable. The human should be able to follow these
 steps immediately after the MR is merged.
 
-If there are subsequent phases, tell the user to say something like "next
-phase" or "continue" once this MR is merged — you will automatically
-re-invoke `/feature-implement $ARGUMENTS` when they do. Before re-invoking,
-explicitly ask: "Has the MR for this phase been merged?" Do not start the
-next phase until they confirm — starting phase N on an unmerged phase N-1
-branch causes conflicts.
+Emit a `phase-report` (see `docs/handoff-protocol.md`) carrying this phase's
+results across the merge gate. Tag the verification steps above as `safe`
+(you may run them automatically once merged) or `human`; carry any unrunnable
+"Verify" items (Step 2.5) as `verify_flags`; set `mr` to this phase's MR; and
+use `notes` for anything else worth flagging to whoever picks this up — plan
+deviations, surprises, things to watch. Set `status` to `phase-complete` if
+phases remain, else `all-complete` (which attaches an `agent-handoff` to
+`/feature-review`, Opus, `when: after-merge`).
 
-If all phases are now complete, tell the user:
+With no handoff mechanism defined, the `phase-report` renders to the developer
+as today's behaviour:
 
-> All phases implemented. When you're ready to review, switch to your Opus
-> session and run `/feature-review <FEATURE>`.
+- **Subsequent phases remain** — tell the user to say "next phase" or
+  "continue" once this MR is merged; you will automatically re-invoke
+  `/feature-implement $ARGUMENTS` when they do. Before re-invoking, ask
+  explicitly: "Has the MR for this phase been merged?" Do not start the next
+  phase until they confirm — starting phase N on an unmerged phase N-1 branch
+  causes conflicts.
+- **All phases complete** — render the attached `agent-handoff`:
+
+  > All phases implemented. When you're ready to review, switch to your Opus
+  > session and run `/feature-review <FEATURE>`.
 
 Do not invoke `/feature-review` yourself.
 

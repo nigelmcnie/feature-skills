@@ -134,6 +134,11 @@ invocation cold-caches `beautifulsoup4`; subsequent runs are fast.
 - **Reviewer subagents** are spawned at requirements / plan / review / iterate.
   All skills here set `disable-model-invocation: true` so they can use the
   Agent tool (subagents can't spawn subagents).
+- **Stage handoffs** (plan→implement, implement→review, iterate→ship) follow
+  `docs/handoff-protocol.md`: a stage emits a neutral `agent-handoff` /
+  `phase-report` payload describing *what* should happen next, never *how*.
+  An environment can bind a mechanism to act on these; with none bound, each
+  payload renders to plain developer-facing prose — the default manual flow.
 - **Feedback synthesis docs** are archived locally to `.feedback-archive/`
   rather than deleted — locally gitignored.
 - **Branch conventions**: requirements + plan commit to `main`. Implementation

@@ -362,7 +362,10 @@ Otherwise — re-review addressed, or the user signals satisfaction
   and execute its Step 4 inline (the ship API call + synthesis-doc
   archive).
 - **If the current branch is `features/<FEATURE>-iterate-N`** (open
-  iteration MR): the MR has to merge before shipping. Tell the user:
+  iteration MR): the MR has to merge before shipping. Emit an `agent-handoff`
+  (see `docs/handoff-protocol.md`): command `/feature-ship <FEATURE>`, model
+  **Opus**, `when: after-merge:<iterate-mr>`. With no handoff mechanism
+  defined this renders to the developer as:
 
   > Once this iteration's MR has merged, run `/feature-ship <FEATURE>`
   > on main — it re-verifies the merged state and marks the feature Done.
