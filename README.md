@@ -139,6 +139,8 @@ invocation cold-caches `beautifulsoup4`; subsequent runs are fast.
   `phase-report` payload describing *what* should happen next, never *how*.
   An environment can bind a mechanism to act on these; with none bound, each
   payload renders to plain developer-facing prose — the default manual flow.
+  `docs/handoff-protocol-example-herdr.md` is a worked example of such a binding
+  (to the herdr fleet via `herd-new`) — illustrative only, not loaded by the skills.
 - **Feedback synthesis docs** are archived locally to `.feedback-archive/`
   rather than deleted — locally gitignored.
 - **Branch conventions**: requirements + plan commit to `main`. Implementation
