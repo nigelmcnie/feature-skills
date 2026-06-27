@@ -127,7 +127,45 @@ to fetch the presentation contract and ground all emitted HTML against it.
 Context docs use plain HTML tags (`<p>`, `<ul>`, `<dl>`) so grounding is
 mostly structural awareness — no special class vocabulary needed.
 
-**2. Assemble section content** by distilling the conversation:
+**2. Create the feature** to register it as Available and record a
+one-line note:
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE" \
+  -H 'Content-Type: application/json' \
+  -d '{"notes": "…one-line note about what this is…"}'
+```
+
+- **200**: feature created. Continue to step 3.
+- **409** (already exists): fetch the current state and decide:
+
+  ```bash
+  curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE"
+  ```
+
+  - `available` or `parked`: benign resumption — the feature exists
+    but hasn't been started. Refresh the notes with the note verb
+    and continue:
+
+    ```bash
+    curl -fsS -X POST \
+      "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/note" \
+      -H 'Content-Type: application/json' \
+      -d '{"notes": "…updated note…"}'
+    ```
+
+  - `in_progress` or `done`: in a single-developer context this is
+    the same person resuming work. Warn the user ("feature is already
+    `<status>`") but continue — adding or refreshing the context doc
+    is still valid.
+
+  - Any other unexpected state: surface it to the user before
+    proceeding. Don't silently overwrite contested state.
+
+If the webapp is unreachable, skip this sub-step — the context doc
+from step 3 is still written below.
+
+**3. Assemble section content** by distilling the conversation:
 
 - **problem-space**: why this might be worth doing, what's broken or
   missing, what conversations or observations triggered it.
@@ -149,7 +187,7 @@ Context is not requirements: keep user stories, technical approaches,
 phase breakdowns, and wishlist features out. Acknowledge unknowns — a
 clear "open question" beats a half-formed guess.
 
-**3. PUT the document**:
+**4. PUT the document**:
 
 ```bash
 curl -fsS -X PUT \
@@ -175,23 +213,7 @@ The context document is immediately in the DB and appears in the inbox
 at `http://127.0.0.1:8800`. It is viewable at the `/doc/N` URL from
 the PUT response.
 
-## Step 6: Register in the tracker
-
-Call the capture API to register this feature as Available:
-
-```bash
-curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/capture" \
-  -H 'Content-Type: application/json' \
-  -d '{"notes": "…one-line note about what this is…"}'
-```
-
-A 200 response means the feature was registered. A 409 means the slug
-already exists — treat as already-captured and continue.
-
-If the webapp is unreachable, skip silently — the context doc is
-already in the DB from Step 4.
-
-## Step 7: Export and commit (if configured)
+## Step 6: Export and commit (if configured)
 
 Check `.feature-workflow.toml` at the repo root.
 
@@ -216,13 +238,13 @@ If either export ran, stage and commit only the exported files, then push:
 
 ```bash
 git add docs/features/$FEATURE/context.md features.md  # as applicable
-git commit -m "docs: capture $FEATURE context"
+git commit -m "docs: add $FEATURE context"
 git push
 ```
 
 If neither export ran (`.feature-workflow.toml` absent or both keys are `"none"`), skip.
 
-## Step 8: Done
+## Step 7: Done
 
 Tell the user the context is captured and viewable in the inbox at
 `http://127.0.0.1:8800`. Mention the chosen FEATURE name and the
