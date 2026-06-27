@@ -29,6 +29,11 @@ sessions by hand. All coupling lives in this binding; the skills stay neutral.
 
 ## Acting on `agent-handoff`
 
+When a handoff says to spawn, the launch is the same action the developer triggers
+by hand ("start a new agent on the plan for X") — use the optional
+[`feature-agent`](feature-agent/SKILL.md) skill so the command/model/naming rules
+stay identical across both entry points.
+
 - `when: now`, target model **differs** from the current one → spawn with herd-new:
   `HERDNEW_MODEL=<model>`, `HERDNEW_PROMPT=<command>`, and put the orchestrator's
   own herdr agent name in the prompt so the new agent can report back. Announce the

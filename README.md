@@ -141,6 +141,11 @@ invocation cold-caches `beautifulsoup4`; subsequent runs are fast.
   payload renders to plain developer-facing prose — the default manual flow.
   `docs/handoff-protocol-example-herdr.md` is a worked example of such a binding
   (to the herdr fleet via `herd-new`) — illustrative only, not loaded by the skills.
+  `docs/feature-agent/SKILL.md` is the optional companion skill for that setup: it
+  turns "start a new agent on the plan for X" into a `herd-new` launch with the
+  right `/feature` command and model. `install-symlinks` wires it into
+  `~/.claude/skills/` automatically when `herd-new` is on `PATH`; adopters without
+  herdr skip it and lose nothing.
 - **Feedback synthesis docs** are archived locally to `.feedback-archive/`
   rather than deleted — locally gitignored.
 - **Branch conventions**: requirements + plan commit to `main`. Implementation

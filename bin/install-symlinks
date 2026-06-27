@@ -31,6 +31,21 @@ for skill in feature feature-requirements feature-plan feature-implement \
     echo "linked skill: $skill"
 done
 
+# Optional herdr integration. The feature-agent skill lives in docs/ (it's a
+# binding, not a core skill) and is only useful with the herdr fleet, so install
+# it only when its herd-new launcher is on PATH.
+if command -v herd-new >/dev/null 2>&1; then
+    src="$REPO_DIR/docs/feature-agent"
+    dst="$SKILLS_DIR/feature-agent"
+    if [[ -e "$dst" || -L "$dst" ]]; then
+        rm -rf "$dst"
+    fi
+    ln -s "$src" "$dst"
+    echo "linked skill: feature-agent (herdr integration)"
+else
+    echo "skip: feature-agent (herd-new not on PATH — herdr integration only)" >&2
+fi
+
 # Bin scripts. Each must be executable in the repo.
 for script in feature-html-to-md doc-contract-lint; do
     src="$REPO_DIR/bin/$script"
