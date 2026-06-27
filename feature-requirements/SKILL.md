@@ -316,7 +316,14 @@ Items get bucketed into three tiers:
 - **Routine**: only items you're highly confident are
   uncontroversial — factual citation/path fixes, naming mechanics
   (rename X to Y), wording polish, defensive-test additions,
-  observability/logging granularity, schema minor specs.
+  observability/logging granularity, schema minor specs,
+  **accuracy rewords** (correcting prose so it matches how the code or
+  behaviour actually works), and **phasing-mechanics** corrections
+  (resequencing or relabelling steps without changing scope). The last
+  two land here, not in Feedback — **unless** the reword or resequencing
+  would change a decision you'd want to weigh in on (a phasing
+  *trade-off*, as opposed to a mechanics correction, stays **Needs your
+  input**).
 - **Feedback** (the middle): everything else, in the reviewer's
   original order.
 
