@@ -394,6 +394,7 @@ def _api_get(url: str) -> dict:
 # ---------------------------------------------------------------------------
 
 _STATUS_SECTIONS = {"In Progress", "Available", "Parked", "Done"}
+_STATUS_SECTIONS_ORDER = ["In Progress", "Available", "Parked", "Done"]
 _SECTION_TO_STATUS = {
     "In Progress": "in_progress",
     "Available": "available",
@@ -545,83 +546,58 @@ def _build_section_block(h: str, blk: dict, all_rows: dict, db_features: dict,
     return out
 
 
-def _merge_features_md(content: str, db_features: dict[str, dict]) -> str:
-    """Merge DB feature state into existing features.md content."""
-    # Split into blocks by ## headings.
-    blocks: list[dict] = []
-    current: dict = {"heading": None, "lines": []}
-    for line in content.splitlines(keepends=True):
-        if line.startswith("## "):
-            blocks.append(current)
-            current = {"heading": line[3:].rstrip(), "lines": [line]}
-        else:
-            current["lines"].append(line)
-    blocks.append(current)
+def _render_features_md(db_features: list[dict], suggested_order: str | None) -> str:
+    """Render features.md from DB state. Deterministic: same DB state → identical output.
 
-    # Build a lookup of every row across all table sections.
-    # Preserves the first occurrence (in document order) if a slug appears twice.
-    all_rows: dict[str, dict] = {}
-    for blk in blocks:
-        h = blk["heading"]
-        if h not in _STATUS_SECTIONS:
+    Sections appear in fixed order: In Progress / Available / Parked / Done.
+    Archived features are excluded. suggested_order text is inserted verbatim
+    after the Available section (before Parked / Done).
+    """
+    by_section: dict[str, list[dict]] = {s: [] for s in _STATUS_SECTIONS_ORDER}
+    for feat in db_features:
+        section = _STATUS_TO_SECTION.get(feat["status"])
+        if section is None:
+            continue  # archived and unknown statuses excluded
+        by_section[section].append(feat)
+
+    out: list[str] = []
+    for h in _STATUS_SECTIONS_ORDER:
+        feats = by_section[h]
+        if not feats:
             continue
-        for row in _parse_table_rows(blk["lines"]):
-            if row["slug"] not in all_rows:
-                all_rows[row["slug"]] = {
-                    "link": row["link"],
-                    "cells": row["cells"],
-                    "in_section": h,
-                }
+        out.append(f"## {h}\n")
+        if h == "In Progress":
+            out.append("| Feature | Owner | Notes |\n")
+            out.append("|---|---|---|\n")
+            for feat in feats:
+                lc = _link_cell(feat["slug"], None)
+                owner = (feat.get("owner") or "").replace("|", "\\|")
+                notes = (feat.get("notes") or "").replace("|", "\\|")
+                out.append(f"| {lc} | {owner} | {notes} |\n")
+        elif h in ("Available", "Parked"):
+            out.append("| Feature | Notes |\n")
+            out.append("|---|---|\n")
+            for feat in feats:
+                lc = _link_cell(feat["slug"], None)
+                notes = (feat.get("notes") or "").replace("|", "\\|")
+                out.append(f"| {lc} | {notes} |\n")
+        else:  # Done
+            out.append("| Feature | Outcome |\n")
+            out.append("|---|---|\n")
+            for feat in feats:
+                lc = _link_cell(feat["slug"], None)
+                outcome = (feat.get("notes") or "Shipped.").replace("|", "\\|")
+                out.append(f"| {lc} | {outcome} |\n")
+        out.append("\n")
 
-    # Track whether a ## Parked block already exists in the document.
-    has_parked_block = any(blk["heading"] == "Parked" for blk in blocks)
+        # suggested_order text goes verbatim after the Available section
+        if h == "Available" and suggested_order:
+            out.append(suggested_order)
+            if not suggested_order.endswith("\n"):
+                out.append("\n")
+            out.append("\n")
 
-    placed: set[str] = set()
-    result: list[str] = []
-    parked_synthesised = False
-
-    for blk in blocks:
-        h = blk["heading"]
-        if h not in _STATUS_SECTIONS:
-            result.append("".join(blk["lines"]))
-            continue
-
-        result.extend(_build_section_block(h, blk, all_rows, db_features, placed))
-
-        # After emitting ## In Progress, synthesise ## Parked if needed.
-        if h == "In Progress" and not has_parked_block and not parked_synthesised:
-            parked_db_feats = {
-                slug: feat for slug, feat in db_features.items()
-                if feat["status"] == "parked"
-            }
-            if parked_db_feats:
-                parked_block = {
-                    "heading": "Parked",
-                    "lines": ["## Parked\n"],
-                }
-                result.extend(_build_section_block(
-                    "Parked", parked_block, all_rows, db_features, placed
-                ))
-                result.append("\n")  # blank line before the next heading (matches re-merge)
-                parked_synthesised = True
-                has_parked_block = True  # prevent end-of-doc fallback
-
-    # End-of-doc fallback: parked features exist but there was no ## In Progress block.
-    if not parked_synthesised and not has_parked_block:
-        parked_db_feats = {
-            slug: feat for slug, feat in db_features.items()
-            if feat["status"] == "parked"
-        }
-        if parked_db_feats:
-            parked_block = {
-                "heading": "Parked",
-                "lines": ["## Parked\n"],
-            }
-            result.extend(_build_section_block(
-                "Parked", parked_block, all_rows, db_features, placed
-            ))
-
-    return "".join(result)
+    return "".join(out).rstrip("\n") + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -705,20 +681,26 @@ def _export_from_api(webapp_url: str, logical_key: str, dst: Path) -> int:
 
 
 def _merge_features(webapp_url: str, project: str, dst: Path) -> int:
-    """Merge current feature status from the webapp API into features.md."""
-    url = f"{webapp_url}/api/projects/{project}/features"
+    """Render features.md from DB state via the webapp API.
+
+    --merge-features now renders from DB rather than merging into the existing file.
+    Deterministic: same DB state produces byte-identical output every time.
+    """
+    features_url = f"{webapp_url}/api/projects/{project}/features"
+    project_url = f"{webapp_url}/api/projects/{project}"
     try:
-        data = _api_get(url)
+        features_data = _api_get(features_url)
+        project_data = _api_get(project_url)
     except RuntimeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
-    db_features = {f["slug"]: f for f in data.get("features", [])}
-    existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
-    merged = _merge_features_md(existing, db_features)
+    db_features = features_data.get("features", [])
+    suggested_order = project_data.get("suggested_order")
+    rendered = _render_features_md(db_features, suggested_order)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_text(merged, encoding="utf-8")
-    print(f"wrote {dst} (merge-features, project={project})", file=sys.stderr)
+    dst.write_text(rendered, encoding="utf-8")
+    print(f"wrote {dst} (merge-features/render-from-db, project={project})", file=sys.stderr)
     return 0
 
 

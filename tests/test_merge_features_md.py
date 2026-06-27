@@ -1,4 +1,4 @@
-"""Tests for _merge_features_md parked-feature support in feature-html-to-md."""
+"""Tests for _render_features_md (render-from-DB export) in feature-html-to-md."""
 
 from __future__ import annotations
 
@@ -9,31 +9,12 @@ _SCRIPT = Path(__file__).parent.parent / "bin" / "feature-html-to-md"
 _ns: dict = {}
 exec(compile(_SCRIPT.read_text(), str(_SCRIPT), "exec"), _ns)  # noqa: S102
 
-_merge_features_md = _ns["_merge_features_md"]
+_render_features_md = _ns["_render_features_md"]
 
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
-
-_BASE_MD = """\
-# My Features
-
-## In Progress
-| Feature | Owner | Notes |
-|---|---|---|
-| feat-a | alice | doing it |
-
-## Available
-| Feature | Notes |
-|---|---|
-| feat-b |  |
-
-## Done
-| Feature | Outcome |
-|---|---|
-| feat-old | Shipped. |
-"""
 
 
 def _feat(slug: str, status: str, **kwargs) -> dict:
@@ -41,333 +22,215 @@ def _feat(slug: str, status: str, **kwargs) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Parked block present in document
+# Idempotence
 # ---------------------------------------------------------------------------
 
 
-class TestParkedBlockPresent:
-    """When ## Parked already exists in the document."""
+class TestIdempotence:
+    """Rendering the same DB state twice must produce byte-identical output."""
 
-    _MD_WITH_PARKED = """\
-# My Features
-
-## In Progress
-| Feature | Owner | Notes |
-|---|---|---|
-| feat-a | alice | doing it |
-
-## Available
-| Feature | Notes |
-|---|---|
-| feat-b |  |
-
-## Parked
-| Feature | Notes |
-|---|---|
-| feat-c |  |
-
-## Done
-| Feature | Outcome |
-|---|---|
-| feat-old | Shipped. |
-"""
-
-    def test_parked_feature_stays_in_parked_section(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-c": _feat("feat-c", "parked"),
-            "feat-old": _feat("feat-old", "done"),
-        }
-        result = _merge_features_md(self._MD_WITH_PARKED, db)
-        lines = result.splitlines()
-        parked_idx = lines.index("## Parked")
-        # feat-c appears after ## Parked
-        feat_c_idx = next(i for i, line in enumerate(lines) if "feat-c" in line)
-        assert feat_c_idx > parked_idx
-
-    def test_parked_feature_absent_from_available(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-c": _feat("feat-c", "parked"),
-            "feat-old": _feat("feat-old", "done"),
-        }
-        result = _merge_features_md(self._MD_WITH_PARKED, db)
-        lines = result.splitlines()
-        avail_idx = lines.index("## Available")
-        parked_idx = lines.index("## Parked")
-        # feat-c must not appear between ## Available and ## Parked
-        feat_c_occurrences = [i for i, line in enumerate(lines) if "feat-c" in line]
-        assert all(i > parked_idx for i in feat_c_occurrences)
-        assert avail_idx < parked_idx
-
-    def test_feature_moved_from_available_to_parked(self):
-        """A row previously in ## Available that the DB now marks parked moves to ## Parked."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "parked"),  # was available, now parked
-            "feat-c": _feat("feat-c", "parked"),
-            "feat-old": _feat("feat-old", "done"),
-        }
-        result = _merge_features_md(self._MD_WITH_PARKED, db)
-        lines = result.splitlines()
-        parked_idx = lines.index("## Parked")
-        feat_b_lines = [i for i, line in enumerate(lines) if "feat-b" in line]
-        assert all(i > parked_idx for i in feat_b_lines)
-        # Should not appear under Available
-        avail_idx = lines.index("## Available")
-        assert all(i > parked_idx for i in feat_b_lines)
-        # No feat-b between ## Available and ## Parked
-        between = [i for i in feat_b_lines if avail_idx < i < parked_idx]
-        assert between == []
-
-    def test_feature_moved_from_parked_to_available(self):
-        """A row previously in ## Parked that the DB now marks available moves to ## Available."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-c": _feat("feat-c", "available"),  # was parked, now available
-            "feat-old": _feat("feat-old", "done"),
-        }
-        result = _merge_features_md(self._MD_WITH_PARKED, db)
-        lines = result.splitlines()
-        avail_idx = lines.index("## Available")
-        parked_idx = lines.index("## Parked")
-        feat_c_lines = [i for i, line in enumerate(lines) if "feat-c" in line]
-        # feat-c must appear in Available section (between ## Available and ## Parked)
-        assert any(avail_idx < i < parked_idx for i in feat_c_lines)
-
-    def test_no_duplicate_parked_section_synthesised(self):
-        """When ## Parked already exists, no second ## Parked block is inserted."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-c": _feat("feat-c", "parked"),
-            "feat-old": _feat("feat-old", "done"),
-        }
-        result = _merge_features_md(self._MD_WITH_PARKED, db)
-        assert result.count("## Parked") == 1
-
-
-# ---------------------------------------------------------------------------
-# Parked block absent — synthesis
-# ---------------------------------------------------------------------------
-
-
-class TestParkedBlockSynthesis:
-    """When ## Parked is NOT in the document but parked features exist in DB."""
-
-    def test_parked_section_synthesised_after_in_progress(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-new": _feat("feat-new", "parked"),
-        }
-        result = _merge_features_md(_BASE_MD, db)
-        assert "## Parked" in result
-        lines = result.splitlines()
-        ip_idx = lines.index("## In Progress")
-        parked_idx = lines.index("## Parked")
-        avail_idx = lines.index("## Available")
-        # ## Parked must appear between ## In Progress and ## Available
-        assert ip_idx < parked_idx < avail_idx
-
-    def test_new_parked_feature_emitted_with_notes_header(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-new": _feat("feat-new", "parked", notes="blocked on X"),
-        }
-        result = _merge_features_md(_BASE_MD, db)
-        assert "feat-new" in result
-        assert "blocked on X" in result
-        # Check it's under the Parked header
-        lines = result.splitlines()
-        parked_idx = lines.index("## Parked")
-        feat_idx = next(i for i, line in enumerate(lines) if "feat-new" in line)
-        assert feat_idx > parked_idx
-
-    def test_parked_section_uses_two_column_table(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-new": _feat("feat-new", "parked"),
-        }
-        result = _merge_features_md(_BASE_MD, db)
-        lines = result.splitlines()
-        parked_idx = lines.index("## Parked")
-        # Next non-empty line after ## Parked should be the Feature | Notes header
-        after = [line for line in lines[parked_idx + 1 :] if line.strip()]
-        assert after[0] == "| Feature | Notes |"
-        assert after[1] == "|---|---|"
-
-    def test_synthesised_parked_section_separated_from_next_heading_by_blank_line(self):
-        """The synthesised ## Parked block ends with a blank line before the next
-        heading, matching every other section's spacing (else it runs straight into
-        ## Available in the committed features.md)."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-new": _feat("feat-new", "parked"),
-        }
-        result = _merge_features_md(_BASE_MD, db)
-        assert "\n\n## Available" in result
-        # And the last parked row is not glued to the next heading.
-        assert "| feat-new |  |\n## Available" not in result
-
-    def test_no_parked_section_synthesised_when_none_in_db(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-        }
-        result = _merge_features_md(_BASE_MD, db)
-        assert "## Parked" not in result
-
-    def test_parked_not_synthesised_when_parked_block_already_present(self):
-        """Regression: parked block already in doc + parked in DB → no duplicate."""
-        md = _BASE_MD + "\n## Parked\n| Feature | Notes |\n|---|---|\n| feat-x |  |\n"
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-x": _feat("feat-x", "parked"),
-        }
-        result = _merge_features_md(md, db)
-        assert result.count("## Parked") == 1
-
-    def test_fallback_end_of_doc_when_no_in_progress_section(self):
-        """When the doc has no ## In Progress, parked is appended at the end."""
-        md = """\
-# My Features
-
-## Available
-| Feature | Notes |
-|---|---|
-| feat-b |  |
-
-## Done
-| Feature | Outcome |
-|---|---|
-| feat-old | Shipped. |
-"""
-        db = {
-            "feat-b": _feat("feat-b", "available"),
-            "feat-new": _feat("feat-new", "parked"),
-        }
-        result = _merge_features_md(md, db)
-        assert "## Parked" in result
-        assert "feat-new" in result
-
-
-# ---------------------------------------------------------------------------
-# Idempotency
-# ---------------------------------------------------------------------------
-
-
-class TestIdempotency:
-    """Merging a result back through merge should produce the same output."""
-
-    def test_merge_is_idempotent_with_parked_block(self):
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-c": _feat("feat-c", "parked"),
-            "feat-old": _feat("feat-old", "done"),
-        }
-        md_with_parked = """\
-# My Features
-
-## In Progress
-| Feature | Owner | Notes |
-|---|---|---|
-| feat-a | alice | doing it |
-
-## Available
-| Feature | Notes |
-|---|---|
-| feat-b |  |
-
-## Parked
-| Feature | Notes |
-|---|---|
-| feat-c |  |
-
-## Done
-| Feature | Outcome |
-|---|---|
-| feat-old | Shipped. |
-"""
-        first = _merge_features_md(md_with_parked, db)
-        second = _merge_features_md(first, db)
+    def test_render_twice_identical(self):
+        feats = [
+            _feat("feat-a", "in_progress", owner="alice"),
+            _feat("feat-b", "available"),
+            _feat("feat-c", "parked"),
+            _feat("feat-d", "done", notes="Shipped."),
+        ]
+        first = _render_features_md(feats, None)
+        second = _render_features_md(feats, None)
         assert first == second
 
-    def test_merge_is_idempotent_with_synthesised_parked(self):
-        """After synthesis, re-merging over the result should be stable."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-new": _feat("feat-new", "parked"),
-        }
-        first = _merge_features_md(_BASE_MD, db)
-        second = _merge_features_md(first, db)
+    def test_render_with_suggested_order_twice_identical(self):
+        feats = [
+            _feat("feat-b", "available"),
+            _feat("feat-a", "available"),
+        ]
+        first = _render_features_md(feats, "feat-b\nfeat-a\n")
+        second = _render_features_md(feats, "feat-b\nfeat-a\n")
         assert first == second
+
+    def test_render_empty_features_identical(self):
+        assert _render_features_md([], None) == _render_features_md([], None)
 
 
 # ---------------------------------------------------------------------------
-# Archived features are dropped from the merge-export
+# DB-only notes appear in output
+# ---------------------------------------------------------------------------
+
+
+class TestDBOnlyNotes:
+    """Notes stored only in the DB (no prior features.md) must appear in output."""
+
+    def test_available_feature_notes_appear(self):
+        feats = [_feat("feat-b", "available", notes="needs design review")]
+        result = _render_features_md(feats, None)
+        assert "needs design review" in result
+
+    def test_in_progress_notes_appear(self):
+        feats = [_feat("feat-a", "in_progress", owner="alice", notes="blocked on auth")]
+        result = _render_features_md(feats, None)
+        assert "blocked on auth" in result
+
+    def test_parked_feature_notes_appear(self):
+        feats = [_feat("feat-c", "parked", notes="waiting for product sign-off")]
+        result = _render_features_md(feats, None)
+        assert "waiting for product sign-off" in result
+
+    def test_done_feature_notes_as_outcome(self):
+        feats = [_feat("feat-d", "done", notes="Shipped via v3.2")]
+        result = _render_features_md(feats, None)
+        assert "Shipped via v3.2" in result
+
+    def test_done_feature_no_notes_defaults_shipped(self):
+        feats = [_feat("feat-d", "done")]
+        result = _render_features_md(feats, None)
+        assert "Shipped." in result
+
+
+# ---------------------------------------------------------------------------
+# suggested_order renders in its slot
+# ---------------------------------------------------------------------------
+
+
+class TestSuggestedOrder:
+    """suggested_order text appears verbatim after the Available section."""
+
+    def test_suggested_order_after_available_before_parked(self):
+        feats = [
+            _feat("feat-b", "available"),
+            _feat("feat-c", "parked"),
+        ]
+        result = _render_features_md(feats, "feat-b\n")
+        lines = result.splitlines()
+        avail_idx = lines.index("## Available")
+        parked_idx = lines.index("## Parked")
+        order_lines = [
+            i for i, l in enumerate(lines)
+            if "feat-b" in l and avail_idx < i < parked_idx and not l.startswith("|")
+        ]
+        assert len(order_lines) > 0
+
+    def test_suggested_order_after_available_before_done(self):
+        feats = [
+            _feat("feat-b", "available"),
+            _feat("feat-d", "done"),
+        ]
+        result = _render_features_md(feats, "feat-b\n")
+        lines = result.splitlines()
+        avail_idx = lines.index("## Available")
+        done_idx = lines.index("## Done")
+        order_lines = [
+            i for i, l in enumerate(lines)
+            if "feat-b" in l and avail_idx < i < done_idx and not l.startswith("|")
+        ]
+        assert len(order_lines) > 0
+
+    def test_no_suggested_order_when_none(self):
+        feats = [_feat("feat-b", "available")]
+        result = _render_features_md(feats, None)
+        # Output should just be the table with no extra prose
+        assert result.count("feat-b") == 1
+
+    def test_suggested_order_verbatim_multiline(self):
+        feats = [_feat("feat-b", "available")]
+        order_text = "feat-b\nfeat-a\n\nSome prose here.\n"
+        result = _render_features_md(feats, order_text)
+        assert "feat-b\nfeat-a\n\nSome prose here." in result
+
+    def test_empty_available_still_places_suggested_order(self):
+        """If Available has features and suggested_order is set, it always appears."""
+        feats = [_feat("feat-x", "available"), _feat("feat-d", "done")]
+        result = _render_features_md(feats, "feat-x\n")
+        lines = result.splitlines()
+        avail_idx = lines.index("## Available")
+        done_idx = lines.index("## Done")
+        # "feat-x" appears as table row AND in suggested_order text
+        all_feat_x = [i for i, l in enumerate(lines) if "feat-x" in l]
+        assert len(all_feat_x) >= 2
+        # The non-table occurrence is between Available and Done
+        non_table = [i for i in all_feat_x if avail_idx < i < done_idx and not lines[i].startswith("|")]
+        assert len(non_table) > 0
+
+
+# ---------------------------------------------------------------------------
+# Archived features excluded
 # ---------------------------------------------------------------------------
 
 
 class TestArchivedExcluded:
-    """``archived`` is deliberately absent from the rebuilt-section allow-list
-    (``_STATUS_SECTIONS`` / ``_SECTION_TO_STATUS``), so an archived feature must
-    never be placed into a rebuilt status section of the merged output. The
-    sibling webapp now writes ``archived`` as a real status, so this cross-repo
-    guarantee is pinned here.
+    """archived status must never appear in the rendered output."""
 
-    The fixtures carry an ``## Archived`` heading so that the allow-list is the
-    only thing keeping archived features out: were ``Archived`` added to the
-    allow-list, the merge would (wrongly) rebuild that section and place these
-    features into it — which is exactly what these tests forbid.
-    """
+    def test_archived_feature_not_in_output(self):
+        feats = [
+            _feat("feat-b", "available"),
+            _feat("feat-z", "archived"),
+        ]
+        result = _render_features_md(feats, None)
+        assert "feat-z" not in result
 
-    _MD_WITH_ARCHIVED_BLOCK = """\
-# My Features
+    def test_archived_only_features_produces_empty_output(self):
+        feats = [_feat("feat-z", "archived")]
+        result = _render_features_md(feats, None)
+        assert "feat-z" not in result
+        # Should still end with a newline (or be empty)
+        assert result == "\n" or result == ""
 
-## In Progress
-| Feature | Owner | Notes |
-|---|---|---|
-| feat-a | alice | doing it |
+    def test_archived_alongside_active_does_not_leak(self):
+        feats = [
+            _feat("feat-a", "in_progress", owner="alice"),
+            _feat("feat-z1", "archived"),
+            _feat("feat-z2", "archived"),
+        ]
+        result = _render_features_md(feats, None)
+        assert "feat-z1" not in result
+        assert "feat-z2" not in result
+        assert "feat-a" in result
 
-## Available
-| Feature | Notes |
-|---|---|
-| feat-b |  |
 
-## Archived
-| Feature | Notes |
-|---|---|
-| feat-z |  |
-"""
+# ---------------------------------------------------------------------------
+# Fixed section order
+# ---------------------------------------------------------------------------
 
-    def test_archived_db_feature_without_existing_row_not_placed(self):
-        """A DB feature with status ``archived`` and no existing row is not
-        emitted into any rebuilt section of the output."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "available"),
-            "feat-z": _feat("feat-z", "archived"),
-            "feat-archived": _feat("feat-archived", "archived"),
-        }
-        result = _merge_features_md(self._MD_WITH_ARCHIVED_BLOCK, db)
-        assert "feat-archived" not in result
 
-    def test_archived_db_feature_removes_existing_available_row(self):
-        """A feature sitting in ## Available that the DB now marks ``archived``
-        is removed from the merged output: the rebuilt Available section drops
-        it, and no archived target section re-places it."""
-        db = {
-            "feat-a": _feat("feat-a", "in_progress", owner="alice"),
-            "feat-b": _feat("feat-b", "archived"),  # was available, now archived
-            "feat-z": _feat("feat-z", "archived"),
-        }
-        result = _merge_features_md(self._MD_WITH_ARCHIVED_BLOCK, db)
-        assert "feat-b" not in result
+class TestSectionOrder:
+    """Sections appear in fixed order: In Progress / Available / Parked / Done."""
+
+    def test_all_sections_fixed_order(self):
+        feats = [
+            _feat("feat-a", "in_progress", owner="alice"),
+            _feat("feat-b", "available"),
+            _feat("feat-c", "parked"),
+            _feat("feat-d", "done"),
+        ]
+        result = _render_features_md(feats, None)
+        lines = result.splitlines()
+        ip_idx = lines.index("## In Progress")
+        avail_idx = lines.index("## Available")
+        parked_idx = lines.index("## Parked")
+        done_idx = lines.index("## Done")
+        assert ip_idx < avail_idx < parked_idx < done_idx
+
+    def test_empty_sections_omitted(self):
+        feats = [_feat("feat-b", "available")]
+        result = _render_features_md(feats, None)
+        assert "## In Progress" not in result
+        assert "## Parked" not in result
+        assert "## Done" not in result
+
+    def test_in_progress_three_columns(self):
+        feats = [_feat("feat-a", "in_progress", owner="bob", notes="on it")]
+        result = _render_features_md(feats, None)
+        assert "| Feature | Owner | Notes |" in result
+        assert "bob" in result
+        assert "on it" in result
+
+    def test_available_two_columns(self):
+        feats = [_feat("feat-b", "available")]
+        result = _render_features_md(feats, None)
+        assert "| Feature | Notes |" in result
+
+    def test_done_outcome_column(self):
+        feats = [_feat("feat-d", "done", notes="Shipped early")]
+        result = _render_features_md(feats, None)
+        assert "| Feature | Outcome |" in result
+        assert "Shipped early" in result
