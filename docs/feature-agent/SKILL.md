@@ -1,6 +1,6 @@
 ---
 name: feature-agent
-description: "Launch a new herdr agent in its own tab to work on a feature-workflow step. Use when the developer asks to \"start working on <feature> in a new agent\", \"start a new agent on requirements/plan/implement/review for <feature>\", \"kick off <feature> in a fresh tab\", \"spin up an agent to do the plan for <feature>\", \"hand <feature> to a new agent\", or any phrasing that means \"open a new tab and task an agent with a /feature step\". This is the feature-aware launcher; it composes the generic herd-new skill with the right /feature command and model."
+description: "Launch a new herdr agent in its own tab to work on a feature-workflow step. Use when the developer asks to \"start <feature>\", \"begin <feature>\", \"let's do <feature>\" or otherwise names a feature to start with no \"in this session\"/\"here\" qualifier (a bare start/begin still means spin up the orchestrator, not run inline), as well as the explicit forms \"start working on <feature> in a new agent\", \"start a new agent on requirements/plan/implement/review for <feature>\", \"kick off <feature> in a fresh tab\", \"spin up an agent to do the plan for <feature>\", \"hand <feature> to a new agent\", or any phrasing that means \"open a new tab and task an agent with a /feature step\". This is the feature-aware launcher; it composes the generic herd-new skill with the right /feature command and model."
 allowed-tools: Bash, Read
 argument-hint: "[feature-name] [step]"
 ---
