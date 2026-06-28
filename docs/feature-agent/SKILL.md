@@ -57,8 +57,14 @@ that router resolve the stage in-session.
    that project's repo, resolve/ask for the right path; never default to a
    random dir.
 
-5. **Name** (`HERDNEW_NAME`) — **equal to the feature name.** One agent per
-   feature; the tab is labelled by the feature.
+5. **Name** (`HERDNEW_NAME`) — **equal to the feature name**, one agent per
+   feature, the tab labelled by the feature. **Exception — orchestrated
+   implement:** when the launching session is a long-lived orchestrator already
+   named `<feature>` (it's handing off `/feature-implement` to a separate Sonnet
+   session), name the spawned agent `<feature>-impl` instead — otherwise it
+   collides with the orchestrator's own `<feature>` herdr name and "report back
+   to `<feature>`" is ambiguous. The bare `<feature>` is the orchestrator's; every
+   helper it spawns takes a suffixed name.
 
 ## Launching
 
