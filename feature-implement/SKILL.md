@@ -281,7 +281,7 @@ hand-rolled polls.
 ```bash
 BRANCH=features/<FEATURE>-p<N>
 until glab ci status -b "$BRANCH" 2>/dev/null \
-  | grep -qE '(success|failed|canceled)'; do
+  | grep -qE 'Pipeline state: (success|failed|canceled)'; do
   sleep 60
 done
 glab ci status -b "$BRANCH"
@@ -389,9 +389,11 @@ results across the merge gate. Tag the verification steps above as `safe`
 (you may run them automatically once merged) or `human`; carry any unrunnable
 "Verify" items (Step 2.5) as `verify_flags`; set `mr` to this phase's MR; and
 use `notes` for anything else worth flagging to whoever picks this up — plan
-deviations, surprises, things to watch. Set `status` to `phase-complete` if
-phases remain, else `all-complete` (which attaches an `agent-handoff` to
-`/feature-review`, Opus, `when: after-merge`).
+deviations, surprises, things to watch. Before setting `status`, verify every
+plan checklist item for all phases is ticked — check the plan API or file;
+don't signal `all-complete` while any item remains unchecked. Set `status`
+to `phase-complete` if phases remain, else `all-complete` (which attaches an
+`agent-handoff` to `/feature-review`, Opus, `when: after-merge`).
 
 With no handoff mechanism defined, the `phase-report` renders to the developer
 as today's behaviour:
