@@ -396,28 +396,28 @@ Call this `FEEDBACK_DOC_ID`.
 
 The feedback doc is in the inbox at `http://127.0.0.1:8800`.
 
-### Poll for submission
+### Wait for submission
 
-Poll `GET /api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis`
-every 5 seconds:
+Issue a single held-connection call that returns as soon as the human
+submits (or after a bounded timeout). Follow `docs/webapp-polling.md` in
+the feature-skills repo for the full convention.
 
 ```bash
 curl -fsS \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis"
+  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis/wait"
 ```
 
-- `curl` error → server unreachable; fall back to clipboard (see below).
+- `curl` error → server unreachable; fall back to short poll (see below).
 - `404` → document not found; check that the PUT succeeded.
-- `200 submitted=false` → awaiting the human; sleep 5, retry. Emit a brief
-  "still waiting in the inbox…" line roughly every 60 s.
 - `200 submitted=true` → read `responses` and `routine_flags` from the
   JSON and proceed to Step 6b.
+- `200 submitted=false` → timeout elapsed with no submission; silently
+  re-issue the wait call (no status line needed — the endpoint holds for
+  up to 25 s, so reconnecting immediately gives continuous coverage).
 
-**Fallback**: if the server is unreachable or the user gives up ("just paste
-it"), ask them to click **Copy responses** in the synthesis doc and paste
-the JSON blob. The `responses`/`routine_flags` shape is identical either
-way. See `docs/webapp-polling.md` in the feature-skills repo for the full
-convention.
+**Short-poll fallback**: if the wait call errors or the server is
+unreachable, fall back to polling `GET .../synthesis` every 5 seconds
+until `submitted=true`.
 
 ## Step 6b: Integrate feedback
 

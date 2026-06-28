@@ -10,24 +10,37 @@ For docs authored via the logical-key API (`PUT /api/documents/...`):
 1. **No force-walk needed** — docs authored via the API are immediately
    indexed in the DB. There is no need to POST to `/admin/discover`.
 
-2. **Poll every 5 s** — use the document's logical key:
+2. **Wait for submission** — issue a single held-connection call that
+   returns as soon as the human submits (or after a bounded timeout):
    ```bash
-   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis"
+   curl -fsS \
+     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis/wait"
    ```
    | Result | Action |
    |--------|--------|
-   | `curl` error (server unreachable) | Fall back to clipboard |
-   | `404` | Doc not found — fall back to clipboard |
+   | `curl` error (server unreachable) | Fall back to short poll (see below) |
+   | `404` | Doc not found — check the PUT succeeded |
+   | `200 submitted=true` | Consume `responses` / `routine_flags` |
+   | `200 submitted=false` | Timeout elapsed — silently re-issue the wait call |
+
+   On a clean `submitted=false` timeout, **silently re-issue** the wait
+   call with no status message — the endpoint holds for up to 25 s and
+   then returns, so reconnecting immediately gives continuous coverage
+   without busy-polling.
+
+3. **Short-poll fallback** — if the wait call errors or the server is
+   unreachable, fall back to polling every 5 s using the existing read
+   endpoint:
+   ```bash
+   curl -fsS \
+     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis"
+   ```
+   | Result | Action |
+   |--------|--------|
+   | `curl` error (server unreachable) | Retry after 5 s |
+   | `404` | Doc not found — check that the PUT succeeded |
    | `200 submitted=false` | Awaiting the human — sleep 5, retry |
    | `200 submitted=true` | Consume `responses` / `routine_flags` |
-
-3. **Periodic status** — emit a brief "still waiting…" line roughly every
-   60 seconds so the user knows the skill is live.
-
-4. **Give-up / fallback** — if the user explicitly gives up (e.g. "let's
-   just paste it") or the server is unreachable, fall back to the clipboard
-   path: ask them to click **Copy responses** and paste the JSON blob.
-   The `responses` / `routine_flags` shape is identical either way.
 
 ## Legacy path-based polling (dev-store docs)
 
