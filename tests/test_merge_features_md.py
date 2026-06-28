@@ -93,7 +93,7 @@ class TestDBOnlyNotes:
 
 
 class TestSuggestedOrder:
-    """suggested_order text appears verbatim after the Available section."""
+    """suggested_order text appears under a '## Suggested order' heading after Available."""
 
     def test_suggested_order_after_available_before_parked(self):
         feats = [
@@ -125,11 +125,22 @@ class TestSuggestedOrder:
         ]
         assert len(order_lines) > 0
 
+    def test_suggested_order_heading_emitted(self):
+        feats = [_feat("feat-b", "available")]
+        result = _render_features_md(feats, "feat-b\nfeat-a\n")
+        lines = result.splitlines()
+        assert "## Suggested order" in lines
+        heading_idx = lines.index("## Suggested order")
+        # First non-empty line after the heading is the body text
+        body_lines = [l for l in lines[heading_idx + 1:] if l.strip()]
+        assert body_lines[0] == "feat-b"
+
     def test_no_suggested_order_when_none(self):
         feats = [_feat("feat-b", "available")]
         result = _render_features_md(feats, None)
-        # Output should just be the table with no extra prose
+        # Output should just be the table with no extra prose or heading
         assert result.count("feat-b") == 1
+        assert "## Suggested order" not in result
 
     def test_suggested_order_verbatim_multiline(self):
         feats = [_feat("feat-b", "available")]
