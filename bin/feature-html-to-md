@@ -590,8 +590,10 @@ def _render_features_md(db_features: list[dict], suggested_order: str | None) ->
                 out.append(f"| {lc} | {outcome} |\n")
         out.append("\n")
 
-        # suggested_order text goes verbatim after the Available section
+        # suggested_order text goes verbatim after the Available section,
+        # under a '## Suggested order' heading
         if h == "Available" and suggested_order:
+            out.append("## Suggested order\n\n")
             out.append(suggested_order)
             if not suggested_order.endswith("\n"):
                 out.append("\n")
