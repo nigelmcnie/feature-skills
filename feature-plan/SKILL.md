@@ -154,9 +154,13 @@ A good implementation plan contains:
   (a project may have a `make check` that runs only a handful of tests
   while `make test` is the real suite). Prefer commands that fail loudly
   when the feature is absent over prose like "run the tests".
-  If a verification step requires live credentials, interactive auth, or
-  an external service, note it inline: `(Note: requires live credentials
-  — perform manually if agent cannot obtain them)`.
+  If a verification step needs live credentials or interactive auth, note
+  it inline as **attempt-first**, not skip: `(Note: needs live credentials
+  — attempt it; when the developer is present their credential store
+  prompts for approval. Only on failure, run what you can and surface that
+  a re-run needs them present.)`. Don't probe the environment for creds to
+  decide whether to try, and don't pre-skip the step — just run it. (A
+  genuinely unreachable external service is still manual.)
   For browser-visible results, write a specific DOM or network assertion
   (URL + what the DOM should contain) rather than "manually confirm in the
   browser" — that form is automatable by Playwright MCP if available, and
@@ -196,6 +200,8 @@ Do NOT include:
 - The plan is a living document — it gets updated if the approach
   changes during implementation. If a deviation is significant, pause
   and get the human to review the revised plan before continuing.
+
+**Test-first battery pattern:** when the feature's model or invariants can be fully encoded as a test battery, author the battery as Phase 1 with all tests marked `xfail(strict=True)`. Each subsequent phase turns its slice from xfail to a real pass. This makes the battery the durable, executable spec and prevents the "dead code / self-certification" failure mode where a feature ships passing unit tests but the headline behaviour was never wired in.
 
 ### Checklist format
 

@@ -306,6 +306,14 @@ Items get bucketed into three tiers:
   - anything your take resolves by **deferring, cutting, or not doing**
     something the reviewer raised — a confident "let's not" is still a
     direction decision; don't fold it down into Feedback as if agreed.
+    For a defer/cut/scope item, the detail **must** carry the concrete
+    **scenario(s)** the thing covers (a worked example, not an abstract
+    description) so the developer can decide in one pass rather than
+    asking you to "explain it simply" and round-tripping. And if your
+    take **relies on a prior decision** ("we already decided X"),
+    **verify that decision actually exists** — cite where — before
+    leaning on it; an unsubstantiated "we decided" presented as settled
+    is worse than saying it's open.
   - **high-risk** choices: hard to reverse, wide blast radius, or
     touching stored user data, security, or trust boundaries.
   - **deviations** from the context doc, `CLAUDE.md`, or a prior

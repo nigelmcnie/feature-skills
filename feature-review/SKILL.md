@@ -143,6 +143,13 @@ but it doesn't execute commands. Implementing agents sometimes mark
 verification items complete based on the code they wrote — catch that
 empirically here.
 
+**Attempt credentialed steps — don't pre-skip them.** A step the plan
+flagged as needing live credentials still runs here: just attempt it; when
+the developer is present their credential store prompts for approval. Only
+if it then fails do you run what you can and surface that a re-run needs
+them present — never probe the environment for creds to decide whether to
+try.
+
 If a verification fails, that's a finding the reviewer should know about;
 mention it in the prompt.
 
