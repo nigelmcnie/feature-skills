@@ -211,12 +211,19 @@ rather than overwriting each other:
 RUN_KEY=$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')
 ```
 
-Write the payload to a temp file (keeps JSON escaping sane) and POST it:
+Write the payload to a temp file (keeps JSON escaping sane), POST it, then
+remove it. Use `mktemp` for a unique path — a hardcoded `/tmp` name would let
+two concurrent retros on the same feature (e.g. the planner's and the
+implementer's, the very coexistence the fresh run key is for) clobber each
+other's payload mid-write, and would linger in `/tmp` afterward:
 
 ```bash
+PAYLOAD=$(mktemp /tmp/retro-findings.XXXXXX.json)
+# …write the JSON body (below) to "$PAYLOAD"…
 curl -fsS -X POST -H 'Content-Type: application/json' \
-  -d @/tmp/retro-findings.json \
+  -d @"$PAYLOAD" \
   http://127.0.0.1:8800/retro-findings 2>/dev/null || true
+rm -f "$PAYLOAD"
 ```
 
 with a body of:
