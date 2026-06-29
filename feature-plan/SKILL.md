@@ -136,7 +136,11 @@ curl -fsS -X PUT \
 
 A good implementation plan contains:
 
-- **Overview**: what we're building, in one paragraph.
+- **Overview**: explain what we're building simply, in plain language,
+  written for someone who hasn't read the plan. Lead with what's broken or
+  missing and what we're doing about it. No jargon, type names, or
+  implementation detail — those belong in Key technical decisions and the
+  phases. This is your answer to "explain the plan simply".
 - **Key technical decisions**: choices that shape the implementation,
   with rationale. Include code snippets showing key interfaces.
 - **File structure**: what files are created or modified.
