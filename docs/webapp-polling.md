@@ -21,12 +21,36 @@ For docs authored via the logical-key API (`PUT /api/documents/...`):
    | `curl` error (server unreachable) | Fall back to short poll (see below) |
    | `404` | Doc not found — check the PUT succeeded |
    | `200 submitted=true` | Consume `responses` / `routine_flags` |
-   | `200 submitted=false` | Timeout elapsed — silently re-issue the wait call |
+   | `200 submitted=false` | Timeout elapsed — re-issue per the reconnect schedule below |
 
-   On a clean `submitted=false` timeout, **silently re-issue** the wait
-   call with no status message — the endpoint holds for up to 25 s and
-   then returns, so reconnecting immediately gives continuous coverage
-   without busy-polling.
+   On a clean `submitted=false` timeout, follow this **deterministic
+   reconnect schedule** — silently, with no status message — rather than
+   reconnecting forever. The endpoint holds for up to ~240 s (about four
+   minutes) before returning, so each reconnect lands cache-warm.
+
+   1. **Active phase (first ~3 empty holds, ~12 min).** On a clean
+      `submitted=false` timeout, re-issue the wait call immediately. This
+      keeps coverage tight and cache-warm while the developer is most
+      likely reviewing.
+   2. **Backoff phase (after ~3 empty holds).** Stop tight reconnecting —
+      you are past the cache window, so amortise with longer sleeps.
+      Use `ScheduleWakeup` at widening delays (e.g. 15 min, then 30 min)
+      and re-issue the wait call on each wake.
+   3. **Hard stop (~30–45 min total with no submission).** Stop waiting
+      and hand back to the developer with a one-line message such as
+      *"I'll pick up your feedback when you submit — ping me."* A concrete
+      bound is the point: it removes the wide variance in how long agents
+      hold.
+
+   **Why this shape.** Reconnecting every ~25 s (the old hold length)
+   spends a full agent turn each time, so an unbounded loop burns tokens
+   with no deterministic stop — some agents gave up in a minute, others
+   held 15+ minutes. A ~240 s hold plus this schedule keeps the active
+   phase cheap (each reconnect is cache-warm), amortises the tail with
+   `ScheduleWakeup`, and bounds total waiting to a known ceiling.
+
+   No time-of-day gating is applied — the schedule is purely elapsed-time
+   based.
 
 3. **Short-poll fallback** — if the wait call errors or the server is
    unreachable, fall back to polling every 5 s using the existing read

@@ -411,9 +411,10 @@ curl -fsS \
 - `404` → document not found; check that the PUT succeeded.
 - `200 submitted=true` → read `responses` and `routine_flags` from the
   JSON and proceed to Step 6b.
-- `200 submitted=false` → timeout elapsed with no submission; silently
-  re-issue the wait call (no status line needed — the endpoint holds for
-  up to 25 s, so reconnecting immediately gives continuous coverage).
+- `200 submitted=false` → timeout elapsed with no submission; re-issue
+  the wait call per the **deterministic reconnect schedule** in
+  `docs/webapp-polling.md` (active reconnects → `ScheduleWakeup` backoff →
+  hard stop and hand back). Don't reconnect forever.
 
 **Short-poll fallback**: if the wait call errors or the server is
 unreachable, fall back to polling `GET .../synthesis` every 5 seconds
