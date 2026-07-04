@@ -99,7 +99,11 @@ curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/review-feedback
 - `200 submitted=true` → parse `responses` and `routine_flags` from the
   JSON body.
 - `200 submitted=false` → the human hasn't submitted yet. Poll every 5 s;
-  emit a "still waiting in the inbox…" line roughly every 60 s.
+  emit a "still waiting in the inbox…" line roughly every 60 s. Bound the
+  wait: after ~30–45 min with no submission, stop polling and hand back
+  with a one-line message such as *"I'll pick up your feedback when you
+  submit — ping me."* (same hard-stop rationale as the reconnect schedule
+  in `docs/webapp-polling.md`). Don't poll forever.
 - `404` → the doc doesn't exist — fall back to the clipboard path.
 
 **Fallback**: if the server is unreachable or the user gives up, ask them
