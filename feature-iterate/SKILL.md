@@ -278,6 +278,19 @@ needed — the commit has already landed.
 
 ## Step 4: Re-review
 
+**Gate the re-review to the substance of the iteration.** A full
+fresh-eyes re-review earns its keep when the iteration made a substantive
+code change — a behaviour fix, a non-trivial refactor, anything touching
+product logic. It does *not* earn its keep on a purely mechanical or
+test-only diff (a new test, an `assert`→`raise`, a wording/type tweak)
+where every addressed finding was already LOW severity: the CI pipeline
+and the Step 3 QC gate already backstop those. In that case, **skip the
+reviewer subagent** — do a quick self-check of the diff instead (does it
+address each item; did it introduce anything new or leave a dangling
+reference?), state in one line that you skipped the re-review and why,
+then go straight to Step 6 (Steps 4–5 don't apply). Spawn the reviewer
+only when the iteration is substantive enough to warrant fresh eyes:
+
 After making changes, spawn a reviewer subagent using the Agent tool with
 `run_in_background: true`. Tell the user the re-reviewer is running.
 

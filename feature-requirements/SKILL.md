@@ -218,6 +218,13 @@ to carry forward useful context.
 ### Tradeoff guidance
 
 - Prefer simplicity over flexibility. Build for the current need.
+- **Bug-fix caveat**: when a fix is routed through the full feature
+  workflow, the per-feature overhead (requirements → plan → review →
+  ship) is already sunk — so when a minimal patch and a root-cause fix
+  carry comparable risk, favour the root-cause fix. "Build for the
+  current need" is a greenfield-scoping heuristic, not licence to patch a
+  symptom when you're already opening the code. Surface the choice as a
+  decision rather than defaulting to the smaller fix.
 - Prefer extending existing patterns over introducing new abstractions.
 - Privacy and security are constraints, not afterthoughts. Flag anything
   that stores user data or crosses trust boundaries.
