@@ -13,9 +13,10 @@ have been approved.
 
 The plan document is authored and stored in the webapp's DB via the
 logical-key API, addressed as `<PROJECT>/<FEATURE>/plan/1`. `<PROJECT>`
-is `basename $(git rev-parse --show-toplevel)`. The repo gets an
-exported snapshot, sourced from the DB, when `.feature-workflow.toml`
-opts in.
+is `basename "$(dirname "$(git rev-parse --git-common-dir)")"` (worktree-safe —
+resolves to the main checkout's name even from inside a phase worktree). The
+repo gets an exported snapshot, sourced from the DB, when
+`.feature-workflow.toml` opts in.
 
 ## Model check
 
@@ -49,7 +50,7 @@ Do not silently switch branches — uncommitted work might be lost.
 Resolve `PROJECT` once and reuse it:
 
 ```bash
-PROJECT=$(basename $(git rev-parse --show-toplevel))
+PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")
 ```
 
 `$ARGUMENTS` is the feature name (`<FEATURE>`).

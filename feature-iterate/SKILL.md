@@ -25,7 +25,7 @@ If `$ARGUMENTS` is provided, use it as the feature name (FEATURE).
 Otherwise, infer from the branch name if you're on a feature branch
 (e.g. `features/<name>-pN`), or ask the user.
 
-Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
 
 ## Step 0.5: Choose where the work lands
 

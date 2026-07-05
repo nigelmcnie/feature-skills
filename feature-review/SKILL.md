@@ -36,7 +36,7 @@ If `$ARGUMENTS` is provided, use it as the feature name (FEATURE).
 Otherwise, ask the user (we're on main now, so the branch name can't
 be used for inference).
 
-Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
 
 Locate the docs, preferring the API and falling back to dev-store HTML
 then legacy markdown:

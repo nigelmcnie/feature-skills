@@ -45,7 +45,7 @@ Tell the user you've switched to main and pulled.
 
 ## Step 2: Resolve names and confirm the work has landed
 
-Resolve `PROJECT`: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
 Take `FEATURE` from `$ARGUMENTS`; if absent, ask (we're on main, so the
 branch name can't be used to infer it).
 

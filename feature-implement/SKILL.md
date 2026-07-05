@@ -25,7 +25,7 @@ Wait for their response. If they say no, stop here.
 
 ## Step 0: Read the plan
 
-Resolve `PROJECT` once: `PROJECT=$(basename $(git rev-parse --show-toplevel))`.
+Resolve `PROJECT` once: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
 `$ARGUMENTS` is the feature name (FEATURE).
 
 Locate and read the plan, in this order of preference:

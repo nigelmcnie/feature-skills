@@ -25,7 +25,7 @@ them as a fallback when the webapp is unreachable.
 ## Step 1: Resolve project and load the tracker
 
 ```bash
-PROJECT=$(basename $(git rev-parse --show-toplevel))
+PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")
 ```
 
 Load the tracker from the DB:
