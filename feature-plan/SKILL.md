@@ -208,6 +208,8 @@ Do NOT include:
 
 **Test-first battery pattern:** when the feature's model or invariants can be fully encoded as a test battery, author the battery as Phase 1 with all tests marked `xfail(strict=True)`. Each subsequent phase turns its slice from xfail to a real pass. This makes the battery the durable, executable spec and prevents the "dead code / self-certification" failure mode where a feature ships passing unit tests but the headline behaviour was never wired in.
 
+**Preserved-behaviour items need a fresh pin:** when a checklist item says "preserve guard/behaviour X" (rather than introducing new behaviour), pair it with an explicit new test item exercising X *under the phase's new dimension* — e.g. the new field combined with the pre-existing edge case the guard protects. A pre-existing test that never combines the new field with X will keep passing whether or not the guard still holds, so it pins nothing; a reviewer (or a later phase) is then left to discover the gap. Same self-certification family as the test-first battery pattern above, one level more specific.
+
 ### Checklist format
 
 Every checklist `<li>` **must** carry a stable
