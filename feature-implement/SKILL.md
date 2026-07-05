@@ -226,11 +226,17 @@ writes the implementation, infers from the code that the verification
 should pass, and ticks the box without confirming. The reviewer (or
 the next session) then trusts the box and ships a broken state.
 
-If a "Verify" step requires live system access you cannot obtain
-(credentials, interactive MFA, external service), do not skip it silently.
-Note the constraint in the MR description, provide a structural equivalent
-where possible (a test that proves the same guarantee), and flag it as
-requiring manual verification post-merge.
+If a "Verify" step needs live credentials or interactive auth, attempt it
+first — don't probe the environment for creds to decide whether to try, and
+don't pre-skip the step. When the developer is present, their credential
+store often prompts for approval (or, for a hook-blocked command like
+`aws-vault`, they can refresh the session live) and the step just passes.
+Only on failure: ask the developer directly (they may be reachable right
+now and can unblock it in the moment) rather than silently deferring. If
+they're genuinely unreachable or the service is down, note the constraint
+in the MR description, provide a structural equivalent where possible (a
+test that proves the same guarantee), and flag it as requiring manual
+verification post-merge.
 
 ## Step 3: Handle deviations
 
