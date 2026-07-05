@@ -444,9 +444,12 @@ Do not invoke `/feature-review` yourself.
 The phase's work is safe on the remote branch once pushed, so the worktree
 has done its job. Leave it in place until the MR merges (the branch is
 checked out there), then remove it — once the user confirms the merge, or
-at the start of the next phase. Remove it the way this repo wants: if its
-`CLAUDE.md` documents a worktree tool, use that to remove it (it may also
-tear down the database/ports the tool set up); otherwise
+at the start of the next phase. **For the final phase** (no next phase
+exists to trigger cleanup), don't just go idle after rendering the
+all-complete message — ask the user to confirm the MR merged, then tear
+the worktree down before ending the session. Remove it the way this repo
+wants: if its `CLAUDE.md` documents a worktree tool, use that to remove it
+(it may also tear down the database/ports the tool set up); otherwise
 `git worktree remove .claude/worktrees/<dir>` (or `ExitWorktree` with
 `action: remove, discard_changes: true` if you're still inside it — the
 branch always has commits from the merged phase, so `discard_changes` is
