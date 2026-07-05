@@ -89,6 +89,16 @@ implement.
 
 ## Step 1: Isolate this phase in a worktree
 
+**Decision-gate phases first.** If the phase's plan section reads as a
+conditional decision gate rather than committed scope (e.g. "assess X,
+take it only if it comes out clean, otherwise defer with a note" —
+language like "decision gate, not committed scope" is a strong signal),
+do the assessment in the current tree first, read-only — no worktree yet.
+Only call `EnterWorktree` once the assessment concludes there is code to
+write. If the verdict is to defer, there is no code phase to isolate at
+all: skip straight to checking off the item (see "Checking off an item"
+below) and go to Step 7 with nothing to commit.
+
 Each phase is built in its own git worktree, so parallel agents in the
 same repo never collide in the shared working tree. The branch must be
 `features/<FEATURE>-p<N>` (always include the phase number, even for
@@ -190,6 +200,18 @@ post-approval snapshot, deliberately frozen.
 
 **Markdown plan** (legacy): change `- [ ]` to `- [x]` for the
 matching item.
+
+### Closing out a decision-gate item that was deferred
+
+When a decision-gate phase (see Step 1) concludes "defer" rather than
+"implement," the assessment itself is the deliverable — check the item
+off (it's done: assessed and decided), but only after writing a durable
+note explaining the outcome. Append it to the phase's own section in the
+plan (not just the checklist label — IDs are stable, don't touch them):
+what was assessed, the concrete reason it doesn't come out clean, and what
+a future attempt would need. A bare checkmark with no rationale is opaque
+to whoever reads the plan next; the note is what makes "defer" a real
+answer instead of a shrug.
 
 ## Step 2.5: Verify "Verify" items empirically
 
