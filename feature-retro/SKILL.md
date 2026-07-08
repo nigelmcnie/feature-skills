@@ -54,10 +54,12 @@ A feature's development spans multiple sessions and models, so the
 current session never holds the whole arc. Reconstruct it from the
 durable artifacts, then layer the lived friction of this session on top.
 
-Derive `PROJECT = basename "$(dirname "$(git rev-parse --git-common-dir)")"`
-(worktree-safe — resolves to the main checkout's name even from inside a
-leftover phase worktree, which is the normal state right after
-`feature-implement` finishes) and take
+Derive `PROJECT = basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"`
+(resolves to the main checkout's name from both the main tree and a leftover
+phase worktree — the latter being the normal state right after
+`feature-implement` finishes; `--path-format=absolute` matters, because from
+the main checkout `--git-common-dir` returns the relative `.git` and without
+it `PROJECT` resolves to `.`) and take
 `FEATURE` from `$ARGUMENTS` (ask if absent). Then look at:
 
 - Plan: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`

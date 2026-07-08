@@ -45,7 +45,9 @@ Tell the user you've switched to main and pulled.
 
 ## Step 2: Resolve names and confirm the work has landed
 
-Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
+Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`
+(`--path-format=absolute` matters: from the main checkout `--git-common-dir`
+returns the relative `.git`, so without it `PROJECT` resolves to `.`).
 Take `FEATURE` from `$ARGUMENTS`; if absent, ask (we're on main, so the
 branch name can't be used to infer it).
 

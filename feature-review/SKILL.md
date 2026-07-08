@@ -36,7 +36,9 @@ If `$ARGUMENTS` is provided, use it as the feature name (FEATURE).
 Otherwise, ask the user (we're on main now, so the branch name can't
 be used for inference).
 
-Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
+Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`
+(`--path-format=absolute` matters: from the main checkout `--git-common-dir`
+returns the relative `.git`, so without it `PROJECT` resolves to `.`).
 
 Locate the docs, preferring the API and falling back to dev-store HTML
 then legacy markdown:
