@@ -15,7 +15,8 @@ workflow: requirements → plan → implement → review → iterate.
 | `feature-implement` | Implement one phase per MR |
 | `feature-qa` | Run the project's quality control checks |
 | `feature-review` | Review the merged implementation on `main` |
-| `feature-iterate` | Address review feedback |
+| `feature-mr-feedback` | Address native platform review comments on a still-open phase MR/PR |
+| `feature-iterate` | Address feature-skills synthesis feedback after a full feature has merged |
 | `feature-ship` | Re-verify the merged state on `main` and mark the feature Done |
 | `feature-retro` | Retro on how the *process* went; surface workflow improvements |
 
@@ -47,6 +48,7 @@ script is safe.
 /feature-requirements <name>   # draft requirements
 /feature-plan <name>           # plan it
 /feature-implement <name>      # implement one phase (re-invoke per phase)
+/feature-mr-feedback <name>    # address platform comments on an open phase MR (as needed, any time after it's up)
 /feature-review <name>         # review after all phases merged
 /feature-iterate <name>        # address review feedback
 /feature-ship <name>           # re-verify merged main and mark Done (after an iterate MR merges)
