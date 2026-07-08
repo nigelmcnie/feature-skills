@@ -238,6 +238,21 @@ in the MR description, provide a structural equivalent where possible (a
 test that proves the same guarantee), and flag it as requiring manual
 verification post-merge.
 
+## Step 2.6: Confirm new tests are red on parent
+
+Every new test this phase adds must be confirmed red on the parent
+commit — not just the ones the plan names with a specific `match=`.
+Before checking off an item whose change is proven by a new test,
+temporarily restore the pre-change version of the file under test
+(`git show <parent-commit>:<path>` is safer here than `git stash`,
+which can silently pop an unrelated pre-existing stash if there's
+nothing to stash), run the test, confirm it fails, then restore your
+change and confirm it passes again (TESTING.md rule 1).
+
+A test that passes with or without the change pins nothing — it reads
+as coverage but proves nothing, and a future refactor can silently
+break the behaviour it claims to guard.
+
 ## Step 3: Handle deviations
 
 If implementation reveals the plan needs to change:
