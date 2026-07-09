@@ -140,15 +140,27 @@ during this session and never restored. An implement or iterate agent can
 stash work mid-feature and forget it; a forgotten stash is easy to lose
 and risky to pop blindly later. Flag any for the developer to clear.
 
-### Surfacing calibration (when the webapp store is available)
+### Surfacing calibration (when the webapp is reachable)
 
 The sharpest signal for tuning the "surface only what I care about" dial
-is the developer's own past answers. The webapp persists them in
-`~/.local/share/feature-skills-webapp/db.sqlite` — `synthesis_responses`,
-one row per item: a non-empty `response`/`routine_flag` means the
-developer engaged (redirected); blank means they agreed with the take.
-Tiers aren't stored in the DB — read them from the synthesis HTML in each
-feature's `.feedback-archive/` (the `tier-needs-input` / `tier-feedback` /
+is the developer's own past answers. Fetch them via the webapp's HTTP
+API — never the DB directly (the project's own convention for this
+store: use the API, not the SQLite file). This also means it works from
+any machine that can reach the webapp, including over a forwarded port,
+not just the one hosting it. List the feature's documents, then pull
+each relevant instance's synthesis:
+
+```bash
+curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/documents" 2>/dev/null
+# then, per doc_type/instance that had a synthesis round this cycle:
+curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/<instance>/synthesis" 2>/dev/null
+```
+
+Each call returns `responses` and `routine_flags`, keyed by item id — a
+non-empty entry means the developer engaged (redirected); an absent or
+empty one means they agreed with the take. Tiers aren't in this
+response — read them from the synthesis HTML in each feature's
+`.feedback-archive/` (the `tier-needs-input` / `tier-feedback` /
 `tier-routine` sections), or from the inline "Need your call" vs
 "Applying" split that review/plan now use.
 
