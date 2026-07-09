@@ -13,7 +13,7 @@ You are starting the requirements phase for a feature.
 The requirements document and feedback synthesis docs are authored and
 stored in the webapp's DB via the logical-key API. Documents are
 addressed by `<PROJECT>/<FEATURE>/<doc_type>/<instance>`.
-`<PROJECT>` is `basename "$(dirname "$(git rev-parse --git-common-dir)")"`
+`<PROJECT>` is `basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"`
 (worktree-safe — resolves to the main checkout's name even from inside a
 phase worktree). The repo gets an exported snapshot, sourced from the DB, when
 `.feature-workflow.toml` opts in.
@@ -58,7 +58,7 @@ use `$ARGUMENTS` directly in paths in case the user confirms a different name.
 Also resolve PROJECT once and reuse it everywhere:
 
 ```bash
-PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")
+PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 ```
 
 Once FEATURE is confirmed, tell the user:

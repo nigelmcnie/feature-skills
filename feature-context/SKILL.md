@@ -16,7 +16,7 @@ been discussed into the structure outlined in Step 4.
 
 The context document is authored and stored in the webapp's DB via the
 logical-key API, addressed as `<PROJECT>/<FEATURE>/context/1`. `<PROJECT>`
-is `basename "$(dirname "$(git rev-parse --git-common-dir)")"` (worktree-safe —
+is `basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"` (worktree-safe —
 resolves to the main checkout's name even from inside a phase worktree). The repo gets an exported
 snapshot, sourced from the DB, when `.feature-workflow.toml` opts in.
 
@@ -43,7 +43,7 @@ at Step 9 so the user knows what you chose.
 
 ## Step 2: Workflow setup (first run)
 
-Resolve `PROJECT` once: `PROJECT=$(basename "$(dirname "$(git rev-parse --git-common-dir)")")`.
+Resolve `PROJECT` once: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`.
 
 The feature workflow needs two pieces to fully engage with the repo:
 
