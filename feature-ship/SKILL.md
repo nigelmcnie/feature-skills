@@ -105,4 +105,37 @@ mv ~/.claude/feature-docs/$PROJECT/$FEATURE/review-feedback-*.html \
    ~/.claude/feature-docs/$PROJECT/$FEATURE/.feedback-archive/ 2>/dev/null || true
 ```
 
+### Refresh the committed tracker snapshot
+
+The ship API flips the feature to Done in the webapp DB, but the repo's
+committed `features.md` snapshot only reflects that once it's re-exported.
+Don't rely on a parallel feature's export happening to propagate it — a
+quiet solo repo would leave Done never reaching the committed tracker.
+Re-export and commit here, but **only** when `.feature-workflow.toml` at
+the repo root has `[export].features = "markdown"` (skip this whole
+sub-step otherwise):
+
+```bash
+feature-html-to-md --webapp http://127.0.0.1:8800 \
+    --merge-features $PROJECT \
+    features.md
+```
+
+Then commit **only** `features.md`, and only if it actually changed. A
+sibling feature's export may already have propagated this feature's Done
+status (the render is whole-tracker), in which case there's nothing to
+commit — skip silently. Scope the commit with an explicit pathspec: a
+shared working tree may carry a concurrent agent's unrelated staged work,
+and a bare `git commit` would sweep it in.
+
+```bash
+if git diff --quiet -- features.md && git diff --cached --quiet -- features.md; then
+  echo "tracker already current — nothing to commit"
+else
+  git add features.md
+  git commit -m "docs: mark $FEATURE shipped in tracker" -- features.md
+  git push
+fi
+```
+
 Tell the user the feature is marked shipped.
