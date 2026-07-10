@@ -288,3 +288,11 @@ waiting to be told which are worth keeping. Then end with a single line:
 them (editing the relevant `SKILL.md` / template). Don't apply any quick
 win before they choose, and don't act on the discussion items beyond
 talking them through and capturing them.
+
+Applying a quick win means landing it in the feature-skills repo, not
+just editing the file on disk: commit the change (with a message
+describing the process tweak, not the feature it came from) and push it.
+The skills are symlinked from `~/.claude/skills/` into a real git
+checkout — an uncommitted edit there is exactly the kind of easily-lost
+state this workflow otherwise guards against, and an unpushed commit
+never reaches the next session or machine that reads these skills.

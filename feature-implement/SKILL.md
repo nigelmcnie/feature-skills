@@ -149,6 +149,15 @@ that name.
 - If you're on some other branch that doesn't match this pattern, stop and
   ask the user before doing anything.
 
+**Confirm you're actually there before touching any files.** Run `pwd`
+(or otherwise verify) right after `EnterWorktree` and again before your
+first Read/Edit/Write of the phase. Absolute paths carried over from
+earlier in the conversation — or just habit — resolve against the
+original checkout, not the worktree, and there is no error when this
+happens: the edit silently succeeds against the wrong tree, and the
+mistake surfaces only much later (if at all) as unexplained uncommitted
+changes in the shared checkout. This has happened in practice.
+
 Never commit implementation work directly to the default branch. If
 worktrees are unavailable (not a git repo) or the user vetoes isolation,
 fall back to `git checkout -b features/<FEATURE>-p<N>` in the current tree
@@ -163,6 +172,13 @@ Work through the phase's checklist items. For each item:
 
 Use a capable but cost-effective model — the plan is detailed enough
 that you should not need to make significant design decisions.
+
+If you're also tracking progress with a session task list (e.g. this
+harness's TaskCreate/TaskUpdate), don't treat it as a separate checklist
+from the plan document — the two drift apart easily, and it's easy to
+diligently tick one while forgetting the other until the very end. When
+you mark a session task complete for a checklist item, tick that item's
+plan checklist in the same step, not as cleanup later.
 
 ### Checking off an item
 
