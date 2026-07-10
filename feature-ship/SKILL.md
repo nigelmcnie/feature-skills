@@ -51,6 +51,13 @@ returns the relative `.git`, so without it `PROJECT` resolves to `.`).
 Take `FEATURE` from `$ARGUMENTS`; if absent, ask (we're on main, so the
 branch name can't be used to infer it).
 
+Resolve the bundled `webapp` helper once (see `docs/webapp-helper.md`); `BASE`
+is this skill's base directory, shown at the top of the invocation:
+
+```bash
+WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
+```
+
 Confirm the feature's phase branches — and any iterate branch — actually
 merged to main, the same lookup `feature-review` Step 3 uses:
 
@@ -84,12 +91,14 @@ A failure here is no longer a ship: it's an iterate (read
 (`feature-review` enters here directly when its review was clean — it has
 already done Steps 1–3.)
 
-Call the ship API to move this feature to Done:
+Call the ship API to move this feature to Done (if entered directly from
+`feature-review`, `$WEBAPP` is already resolved; otherwise resolve it as in
+Step 2):
 
 ```bash
-curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/ship" \
-  -H 'Content-Type: application/json' \
-  -d '{"outcome": "Shipped. …one or two sentence summary of what landed…"}'
+OUTCOME=$(mktemp)
+printf '{"outcome": "Shipped. …one or two sentence summary of what landed…"}' > "$OUTCOME"
+"$WEBAPP" post /api/projects/$PROJECT/features/$FEATURE/ship "$OUTCOME"
 ```
 
 A 200 response means the feature is marked Done. If the webapp is

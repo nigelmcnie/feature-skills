@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""webapp — thin transport for the feature-workflow webapp API.
+
+Ships with the feature-skills so every skill can talk to the webapp the same
+way, on any machine, with no setup. Standard-library only (urllib) — no curl,
+no jq, no third-party deps — so it is immune to shell-quoting quirks and lossy
+output filters, and portable anywhere python3 runs and the webapp is reachable
+on localhost (directly, or via an SSH tunnel).
+
+Base URL: $FEATURE_WEBAPP_URL, default http://127.0.0.1:8800. The default is
+the localhost convention the workflow already assumes; override the env var to
+point elsewhere without editing anything.
+
+Usage:
+  webapp get  <path>
+  webapp put  <path> [file]   # request body from file, or stdin if omitted / "-"
+  webapp post <path> [file]   # same
+  webapp wait <path> [--deadline SECS] [--min-gap SECS]
+      Re-poll a long-poll endpoint until its JSON response has submitted=true,
+      or the deadline passes. Absorbs the server's short holds internally, so an
+      arbitrarily long human wait costs the caller a single (backgroundable)
+      invocation instead of one turn per server timeout. Prints the final body.
+
+<path> is everything after the base URL, e.g.
+/api/documents/PROJECT/FEATURE/plan/1 (a leading slash is optional).
+
+The response body is written to stdout verbatim. A non-2xx status writes
+"<status> <body>" to stderr and exits 1 (mirrors `curl -f`). A transport
+failure (server unreachable) writes the error to stderr and exits 1.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import socket
+import sys
+import time
+import urllib.error
+import urllib.request
+
+BASE = os.environ.get("FEATURE_WEBAPP_URL", "http://127.0.0.1:8800").rstrip("/")
+
+
+def _request(method: str, path: str, body: str | None = None, timeout: float = 120.0):
+    """Perform one request. Returns (status, body_text).
+
+    HTTP error statuses (4xx/5xx) are returned as (code, body) rather than
+    raised, so callers can inspect them. Transport errors (timeout, refused,
+    DNS) propagate as urllib.error.URLError / TimeoutError for the caller to
+    handle — `wait` reconnects on timeout; the one-shot verbs report and exit.
+    """
+    url = BASE + (path if path.startswith("/") else "/" + path)
+    data = body.encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, method=method)
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+
+def _read_body(arg: str | None) -> str:
+    if arg is None or arg == "-":
+        return sys.stdin.read()
+    with open(arg, encoding="utf-8") as f:
+        return f.read()
+
+
+def _one_shot(method: str, path: str, body: str | None, timeout: float) -> int:
+    try:
+        status, out = _request(method, path, body=body, timeout=timeout)
+    except (TimeoutError, socket.timeout, urllib.error.URLError) as e:
+        sys.stderr.write(f"webapp: request to {BASE} failed: {e}\n")
+        return 1
+    if 200 <= status < 300:
+        sys.stdout.write(out)
+        return 0
+    sys.stderr.write(f"{status} {out}\n")
+    return 1
+
+
+def _wait(path: str, deadline_s: float, min_gap: float, timeout: float) -> int:
+    """Re-poll `path` until the JSON body has submitted=true, or the deadline.
+
+    The completion predicate (submitted=true) is the synthesis long-poll
+    contract. Each underlying GET holds server-side; a server timeout surfaces
+    here as a socket timeout and simply reconnects. A min-gap floor keeps a
+    fast-returning hold from busy-looping.
+    """
+    deadline = time.monotonic() + deadline_s
+    last = '{"submitted": false}'
+    while time.monotonic() < deadline:
+        start = time.monotonic()
+        remaining = deadline - start
+        try:
+            status, out = _request("GET", path, timeout=min(timeout, max(5.0, remaining)))
+        except (TimeoutError, socket.timeout):
+            continue  # server held past our per-request timeout — reconnect
+        except urllib.error.URLError as e:
+            sys.stderr.write(f"webapp: request to {BASE} failed: {e}\n")
+            return 1
+        if not (200 <= status < 300):
+            sys.stderr.write(f"{status} {out}\n")
+            return 1
+        last = out
+        try:
+            if json.loads(out).get("submitted") is True:
+                sys.stdout.write(out)
+                return 0
+        except (ValueError, AttributeError):
+            pass
+        gap = min_gap - (time.monotonic() - start)
+        if gap > 0:
+            time.sleep(gap)
+    sys.stdout.write(last)  # deadline reached: emit the last body (submitted=false)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="webapp", description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    g = sub.add_parser("get")
+    g.add_argument("path")
+    g.add_argument("--timeout", type=float, default=120.0)
+
+    for name in ("put", "post"):
+        s = sub.add_parser(name)
+        s.add_argument("path")
+        s.add_argument("file", nargs="?")
+        s.add_argument("--timeout", type=float, default=120.0)
+
+    w = sub.add_parser("wait")
+    w.add_argument("path")
+    w.add_argument("--deadline", type=float, default=1800.0)
+    w.add_argument("--min-gap", type=float, default=2.0)
+    w.add_argument("--timeout", type=float, default=120.0)
+
+    a = p.parse_args(argv)
+
+    if a.cmd == "get":
+        return _one_shot("GET", a.path, None, a.timeout)
+    if a.cmd in ("put", "post"):
+        return _one_shot(a.cmd.upper(), a.path, _read_body(a.file), a.timeout)
+    if a.cmd == "wait":
+        return _wait(a.path, a.deadline, a.min_gap, a.timeout)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

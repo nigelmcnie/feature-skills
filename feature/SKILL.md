@@ -93,8 +93,11 @@ dev-store and repo are legacy fallbacks.
 
 ```bash
 PROJECT=$(basename $(git rev-parse --show-toplevel))
+# Resolve the bundled webapp helper once (see docs/webapp-helper.md); BASE is
+# this skill's base directory, shown at the top of the invocation.
+WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
 # Check the API first (canonical):
-curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/documents" 2>/dev/null
+"$WEBAPP" get /api/projects/$PROJECT/features/$FEATURE/documents 2>/dev/null
 # Fall back to file system if API unreachable:
 ls ~/.claude/feature-docs/$PROJECT/$FEATURE/ 2>/dev/null
 ls docs/features/$FEATURE/ 2>/dev/null
@@ -130,7 +133,7 @@ To check for unchecked items:
   section:
 
   ```bash
-  PLAN_JSON=$(curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1")
+  PLAN_JSON=$("$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1)
   CHECKLIST=$(echo "$PLAN_JSON" | python3 -c \
     "import sys,json; secs=json.load(sys.stdin)['sections']; \
      print(next((s['body'] for s in secs if s['key']=='checklist'), ''))")

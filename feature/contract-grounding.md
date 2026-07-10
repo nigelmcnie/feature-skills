@@ -2,19 +2,22 @@
 
 Follow these steps whenever you write HTML for a content document.
 
+Webapp calls below use the bundled `webapp` helper (`"$WEBAPP" get …`); the
+calling skill resolves `$WEBAPP` once at its start — see `docs/webapp-helper.md`.
+
 ## 1. Fetch the presentation contract
 
 The manifest response for any content doc type carries a `presentation` block:
 
 ```bash
-curl -fsS http://127.0.0.1:8800/api/manifests/<doc_type>
+"$WEBAPP" get /api/manifests/<doc_type>
 ```
 
 The `presentation.stylesheet_url` field points to the contract stylesheet (typically
 `/static/doc.css`). Fetch it:
 
 ```bash
-curl -fsS http://127.0.0.1:8800/static/doc.css
+"$WEBAPP" get /static/doc.css
 ```
 
 If the manifest carries no `presentation` block, proceed using section keys and your
