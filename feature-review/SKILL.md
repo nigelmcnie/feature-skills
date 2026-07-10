@@ -39,6 +39,9 @@ be used for inference).
 Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`
 (`--path-format=absolute` matters: from the main checkout `--git-common-dir`
 returns the relative `.git`, so without it `PROJECT` resolves to `.`).
+Resolve the bundled `webapp` helper once too (see `docs/webapp-helper.md`);
+`BASE` is this skill's base directory, shown at the top of the invocation:
+`WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"`.
 
 Locate the docs, preferring the API and falling back to dev-store HTML
 then legacy markdown:
@@ -230,8 +233,8 @@ First, fold in any click-to-comment annotations the developer left on
 the spine docs (a bonus input, not a gate — skip on any error):
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1/comments
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1/comments
 ```
 
 For each doc with a non-empty `comments` array, fold the comments in as
@@ -239,10 +242,8 @@ additional feedback. Integrate the consumed ids afterwards so they don't
 resurface:
 
 ```bash
-curl -fsS -X POST \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
-  -H 'Content-Type: application/json' \
-  -d '{"ids": [<ids>]}' 2>/dev/null || true
+printf '{"ids": [<ids>]}' | "$WEBAPP" post \
+  /api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate - 2>/dev/null || true
 # repeat for plan/1/comments/integrate if it also had comments
 ```
 

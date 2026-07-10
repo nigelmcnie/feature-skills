@@ -26,6 +26,9 @@ Otherwise, infer from the branch name if you're on a feature branch
 (e.g. `features/<name>-pN`), or ask the user.
 
 Resolve `PROJECT`: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`.
+Resolve the bundled `webapp` helper once too (see `docs/webapp-helper.md`);
+`BASE` is this skill's base directory, shown at the top of the invocation:
+`WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"`.
 
 ## Step 0.5: Choose where the work lands
 
@@ -93,7 +96,7 @@ The synthesis response was submitted via the webapp. Poll it via the
 document's logical key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/review-feedback/$N/synthesis"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/review-feedback/$N/synthesis
 ```
 
 - `200 submitted=true` → parse `responses` and `routine_flags` from the
@@ -141,18 +144,16 @@ requirements or plan docs. Fetch those from the webapp using the
 keyed endpoints:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1/comments
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1/comments
 ```
 
 For each doc with a non-empty `comments` array, fold the comments in as
 additional feedback. Then integrate the consumed ids:
 
 ```bash
-curl -fsS -X POST \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
-  -H 'Content-Type: application/json' \
-  -d '{"ids": [<ids>]}'
+printf '{"ids": [<ids>]}' | "$WEBAPP" post \
+  /api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate -
 # repeat for plan/1/comments/integrate if it also had comments
 ```
 
@@ -193,7 +194,7 @@ After making changes, capture decisions into the requirements doc.
 GET the current requirements content from the API:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1
 ```
 
 Append (or extend) the **review-decisions** section in the `sections`
@@ -207,10 +208,9 @@ array. For each item:
 Number each round sequentially. Then PUT the updated sections back:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {…, "review-decisions": "…"}, "actor": "agent"}'
+BODY=$(mktemp)
+printf '%s' '{"sections": {…, "review-decisions": "…"}, "actor": "agent"}' > "$BODY"
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/requirements/1 "$BODY"
 ```
 
 For legacy features where requirements are still in the dev-store

@@ -44,6 +44,9 @@ at Step 9 so the user knows what you chose.
 ## Step 2: Workflow setup (first run)
 
 Resolve `PROJECT` once: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`.
+Resolve the bundled `webapp` helper once too (see `docs/webapp-helper.md`);
+`BASE` is this skill's base directory, shown at the top of the invocation:
+`WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"`.
 
 The feature workflow needs two pieces to fully engage with the repo:
 
@@ -118,7 +121,7 @@ Resolve PROJECT and FEATURE (both set by this point).
 **1. Fetch the manifest** to confirm the section keys for this doc type:
 
 ```bash
-curl -fsS http://127.0.0.1:8800/api/manifests/context
+"$WEBAPP" get /api/manifests/context
 ```
 
 The manifest returns a list of sections with their keys. Use those keys
@@ -132,16 +135,15 @@ mostly structural awareness — no special class vocabulary needed.
 one-line note:
 
 ```bash
-curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE" \
-  -H 'Content-Type: application/json' \
-  -d '{"notes": "…one-line note about what this is…"}'
+printf '{"notes": "…one-line note about what this is…"}' \
+  | "$WEBAPP" post /api/projects/$PROJECT/features/$FEATURE -
 ```
 
 - **200**: feature created. Continue to step 3.
 - **409** (already exists): fetch the current state and decide:
 
   ```bash
-  curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE"
+  "$WEBAPP" get /api/projects/$PROJECT/features/$FEATURE
   ```
 
   - `available` or `parked`: benign resumption — the feature exists
@@ -149,10 +151,8 @@ curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE
     and continue:
 
     ```bash
-    curl -fsS -X POST \
-      "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/note" \
-      -H 'Content-Type: application/json' \
-      -d '{"notes": "…updated note…"}'
+    printf '{"notes": "…updated note…"}' \
+      | "$WEBAPP" post /api/projects/$PROJECT/features/$FEATURE/note -
     ```
 
   - `in_progress` or `done`: in a single-developer context this is
@@ -191,18 +191,19 @@ clear "open question" beats a half-formed guess.
 **4. PUT the document**:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/context/1" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "sections": {
-      "problem-space": "<p>…</p>",
-      "related-work": "<p>…</p>",
-      "constraints": "<ul><li>…</li></ul>",
-      "open-questions": "<ul><li>…</li></ul>"
-    },
-    "actor": "agent"
-  }'
+BODY=$(mktemp)
+cat > "$BODY" <<'JSON'
+{
+  "sections": {
+    "problem-space": "<p>…</p>",
+    "related-work": "<p>…</p>",
+    "constraints": "<ul><li>…</li></ul>",
+    "open-questions": "<ul><li>…</li></ul>"
+  },
+  "actor": "agent"
+}
+JSON
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/context/1 "$BODY"
 ```
 
 The response includes `{"document_id": N, "url": "/doc/N", ...}`.

@@ -55,10 +55,13 @@ confirm the feature name with the user before proceeding. Store this
 confirmed name — call it FEATURE — and use it for all file paths. Do not
 use `$ARGUMENTS` directly in paths in case the user confirms a different name.
 
-Also resolve PROJECT once and reuse it everywhere:
+Also resolve PROJECT once and reuse it everywhere, plus the bundled `webapp`
+helper (see `docs/webapp-helper.md`); `BASE` is this skill's base directory,
+shown at the top of the invocation:
 
 ```bash
 PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
 ```
 
 Once FEATURE is confirmed, tell the user:
@@ -73,9 +76,8 @@ non-empty owner.
 Call the claim API to move this feature from Available to In Progress:
 
 ```bash
-curl -fsS -X POST "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/claim" \
-  -H 'Content-Type: application/json' \
-  -d '{"owner": "<user name>"}'
+printf '{"owner": "<user name>"}' \
+  | "$WEBAPP" post /api/projects/$PROJECT/features/$FEATURE/claim -
 ```
 
 A 200 response means the feature is now In Progress. If the webapp is
@@ -112,7 +114,7 @@ Read the following:
 **1. Fetch the manifest** to confirm the section keys for requirements:
 
 ```bash
-curl -fsS http://127.0.0.1:8800/api/manifests/requirements
+"$WEBAPP" get /api/manifests/requirements
 ```
 
 Use the returned section keys exactly. Also read `presentation.stylesheet_url` from the
@@ -125,10 +127,9 @@ contract vocabulary.
 **3. PUT the document**:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {"summary": "<p>…</p>", "vision": "…", …}, "actor": "agent"}'
+BODY=$(mktemp)
+printf '%s' '{"sections": {"summary": "<p>…</p>", "vision": "…", …}, "actor": "agent"}' > "$BODY"
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/requirements/1 "$BODY"
 ```
 
 The response includes `{"document_id": N, "url": "/doc/N", ...}`.
@@ -147,10 +148,7 @@ class names in the section bodies, re-PUT, and re-run until the lint is clean.
 Use `?dry_run=true` if you want to validate the section keys before committing:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1?dry_run=true" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {...}}'
+"$WEBAPP" put "/api/documents/$PROJECT/$FEATURE/requirements/1?dry_run=true" "$BODY"
 # → {"valid": true}
 ```
 
@@ -371,8 +369,9 @@ N = 1 upward until you get a 404:
 
 ```bash
 N=1
-while [ "$(curl -fsS -o /dev/null -w '%{http_code}' \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N")" = "200" ]; do
+# The helper exits 0 on a 200 (doc exists) and non-zero on a 404 — so loop
+# while it succeeds, stopping at the first unused instance.
+while "$WEBAPP" get "/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N" >/dev/null 2>&1; do
   N=$((N + 1))
 done
 ```
@@ -388,13 +387,12 @@ the three-tier structure; update `<title>`, `<h1>`, subtitle, meta
 line, textarea total, and the JS `docId` constant to
 `$PROJECT/$FEATURE/requirements-feedback/$N`).
 
-Then PUT it to the API as an opaque body:
+Then PUT it to the API as an opaque body. Assemble
+`{"body": "<full HTML document>", "actor": "agent"}` into a file — use a short
+`json.dumps` helper so the HTML string is escaped correctly — then:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N" \
-  -H 'Content-Type: application/json' \
-  -d '{"body": "<full HTML document>", "actor": "agent"}'
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/requirements-feedback/$N "$BODY"
 ```
 
 The response includes `{"document_id": N_DOC, "url": "/doc/N_DOC", ...}`.
@@ -406,27 +404,26 @@ The feedback doc is in the inbox at `http://127.0.0.1:8800`.
 
 ### Wait for submission
 
-Issue a single held-connection call that returns as soon as the human
-submits (or after a bounded timeout). Follow `docs/webapp-polling.md` in
-the feature-skills repo for the full convention.
+Use the helper's `wait` verb — it long-polls and re-issues internally across
+the server's holds until the human submits or the deadline passes, so an
+arbitrarily long wait costs one backgroundable call, not one turn per hold
+(see `docs/webapp-polling.md`). Run it in the background.
 
 ```bash
-curl -fsS \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis/wait"
+"$WEBAPP" wait \
+  /api/documents/$PROJECT/$FEATURE/requirements-feedback/$N/synthesis/wait --deadline 1800
 ```
 
-- `curl` error → server unreachable; fall back to short poll (see below).
-- `404` → document not found; check that the PUT succeeded.
-- `200 submitted=true` → read `responses` and `routine_flags` from the
-  JSON and proceed to Step 6b.
-- `200 submitted=false` → timeout elapsed with no submission; re-issue
-  the wait call per the **deterministic reconnect schedule** in
-  `docs/webapp-polling.md` (active reconnects → `ScheduleWakeup` backoff →
-  hard stop and hand back). Don't reconnect forever.
+- helper exits non-zero → server unreachable; fall back to short poll (below).
+- `submitted=true` → read `responses` and `routine_flags` from the JSON and
+  proceed to Step 6b.
+- `submitted=false` → the `--deadline` (default 1800 s) elapsed with no
+  submission; reconnect with another `wait`, or hand back to the developer
+  ("ping me when you submit"). `wait` bounds the total and handles the
+  reconnect/backoff internally — there's no manual schedule to run.
 
-**Short-poll fallback**: if the wait call errors or the server is
-unreachable, fall back to polling `GET .../synthesis` every 5 seconds
-until `submitted=true`.
+**Short-poll fallback**: if `wait` errors (server unreachable), fall back to
+polling `"$WEBAPP" get .../synthesis` every 5 seconds until `submitted=true`.
 
 ## Step 6b: Integrate feedback
 
@@ -464,8 +461,7 @@ from the webapp immediately after the synthesis response arrives, using
 the document's logical key:
 
 ```bash
-curl -fsS \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1/comments
 ```
 
 If the `comments` array is non-empty, fold each comment in as additional
@@ -474,10 +470,8 @@ After folding them in, mark the consumed ids as integrated so they don't
 reappear next round:
 
 ```bash
-curl -fsS -X POST \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate" \
-  -H 'Content-Type: application/json' \
-  -d '{"ids": [<ids from the GET response>]}'
+printf '{"ids": [<ids from the GET response>]}' \
+  | "$WEBAPP" post /api/documents/$PROJECT/$FEATURE/requirements/1/comments/integrate -
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
@@ -518,10 +512,9 @@ one or two lines, cite the source review round. Ensure declined
 suggestions land in **alternatives** or as inline notes.
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {"summary": "…", "design-notes": "…", …}, "actor": "agent"}'
+BODY=$(mktemp)
+printf '%s' '{"sections": {"summary": "…", "design-notes": "…", …}, "actor": "agent"}' > "$BODY"
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/requirements/1 "$BODY"
 ```
 
 The feedback synthesis doc is transient (it served its purpose when
@@ -541,7 +534,7 @@ the loop again:
 
 1. GET the current requirements content from the API:
    ```bash
-   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
+   "$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1
    ```
 2. Apply the new feedback and PUT the fresh sections (the same
    fresh-render discipline as Step 6b).

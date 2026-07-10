@@ -47,10 +47,13 @@ Do not silently switch branches — uncommitted work might be lost.
 
 ## Step 1: Read context
 
-Resolve `PROJECT` once and reuse it:
+Resolve `PROJECT` once and reuse it, plus the bundled `webapp` helper (see
+`docs/webapp-helper.md`); `BASE` is this skill's base directory, shown at the
+top of the invocation:
 
 ```bash
 PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
 ```
 
 `$ARGUMENTS` is the feature name (`<FEATURE>`).
@@ -78,7 +81,7 @@ Read the following:
 **1. Fetch the manifest** to confirm the section keys for a plan:
 
 ```bash
-curl -fsS http://127.0.0.1:8800/api/manifests/plan
+"$WEBAPP" get /api/manifests/plan
 ```
 
 The plan manifest includes base sections (overview, key-decisions,
@@ -105,31 +108,30 @@ structure described below, grounded against the contract vocabulary.
 **3. PUT the document**:
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "sections": {
-      "overview": "<p>…</p>",
-      "key-decisions": "…",
-      "phase-1": "…",
-      "phase-2": "…",
-      "checklist": "…"
-    },
-    "actor": "agent"
-  }'
+BODY=$(mktemp)
+cat > "$BODY" <<'JSON'
+{
+  "sections": {
+    "overview": "<p>…</p>",
+    "key-decisions": "…",
+    "phase-1": "…",
+    "phase-2": "…",
+    "checklist": "…"
+  },
+  "actor": "agent"
+}
+JSON
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/plan/1 "$BODY"
 ```
 
 The response includes `{"document_id": N, "url": "/doc/N", ...}`.
 Note the `document_id` — you will need it for comments endpoints.
 
-Use `?dry_run=true` to validate section keys before committing:
+Use `?dry_run=true` to validate section keys before committing (reuse the
+same body file):
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1?dry_run=true" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {…}}'
+"$WEBAPP" put "/api/documents/$PROJECT/$FEATURE/plan/1?dry_run=true" "$BODY"
 # → {"valid": true}
 ```
 
@@ -351,17 +353,15 @@ When the user replies (with answers or "go"), also fetch active comments
 from the webapp before applying anything, using the plan's logical key:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1/comments
 ```
 
 If the `comments` array is non-empty, fold each comment into the same
 triage as reviewer feedback. After applying, integrate the consumed ids:
 
 ```bash
-curl -fsS -X POST \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments/integrate" \
-  -H 'Content-Type: application/json' \
-  -d '{"ids": [<ids from GET>]}'
+printf '{"ids": [<ids from GET>]}' | "$WEBAPP" post \
+  /api/documents/$PROJECT/$FEATURE/plan/1/comments/integrate -
 ```
 
 **Fallback**: if the server is unreachable, ask the user to click **Copy
@@ -378,12 +378,11 @@ GET the current requirements content, add/update the design-notes
 section, then PUT the updated sections back:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1"
-# … update design-notes section …
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/requirements/1" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {…, "design-notes": "…"}, "actor": "agent"}'
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/requirements/1
+# … update design-notes section, then write the full sections JSON to a file …
+BODY=$(mktemp)
+printf '%s' '{"sections": {…, "design-notes": "…"}, "actor": "agent"}' > "$BODY"
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/requirements/1 "$BODY"
 ```
 
 ### Re-render the plan via the API
@@ -396,10 +395,9 @@ historical re-render workflow: the canonical DB content reflects the
 full integrated state, not a patchwork.
 
 ```bash
-curl -fsS -X PUT \
-  "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
-  -H 'Content-Type: application/json' \
-  -d '{"sections": {"overview": "…", "checklist": "…", …}, "actor": "agent"}'
+BODY=$(mktemp)
+printf '%s' '{"sections": {"overview": "…", "checklist": "…", …}, "actor": "agent"}' > "$BODY"
+"$WEBAPP" put /api/documents/$PROJECT/$FEATURE/plan/1 "$BODY"
 ```
 
 Summarise what was applied to the user. They can refresh the inbox
@@ -412,7 +410,7 @@ are new comments in the webapp, then at each iterate round fetch active
 comments from the webapp first:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1/comments"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1/comments
 ```
 
 If the `comments` array is non-empty, fold them in and integrate the ids
@@ -420,7 +418,7 @@ If the `comments` array is non-empty, fold them in and integrate the ids
 
 1. GET the current plan content from the API:
    ```bash
-   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1"
+   "$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1
    ```
 2. Apply the new feedback and PUT the fresh sections (fresh-render discipline).
 3. If the changes are substantial, re-spawn the reviewer subagent on the

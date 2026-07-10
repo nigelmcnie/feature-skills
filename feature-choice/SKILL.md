@@ -26,27 +26,30 @@ them as a fallback when the webapp is unreachable.
 
 ```bash
 PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+# Resolve the bundled webapp helper (see docs/webapp-helper.md); BASE is this
+# skill's base directory, shown at the top of the invocation.
+WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
 ```
 
 Load the tracker from the DB:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features"
+"$WEBAPP" get /api/projects/$PROJECT/features
 ```
 
 A `200` returns `{"project": "...", "features": [{"slug", "status",
 "owner", "notes"}, ...]}`. This is the canonical tracker — use it.
 
-**If the webapp is unreachable** (curl fails / connection refused),
-fall back to an exported snapshot, in this order, and note to the user
-that you're reading a possibly-stale export:
+**If the webapp is unreachable** (the helper exits non-zero / connection
+refused), fall back to an exported snapshot, in this order, and note to the
+user that you're reading a possibly-stale export:
 
 1. `~/.claude/feature-docs/<PROJECT>/features.html` — dev-store export.
 2. `features.md` at the repo root — older export.
 
 **If neither the API nor a fallback yields any features** — the API
 errors and no export exists, or the project is unknown to the webapp
-(`curl -fsS http://127.0.0.1:8800/api/projects` doesn't list it) and
+(`"$WEBAPP" get /api/projects` doesn't list it) and
 has no export — the project doesn't have a tracker. Tell the user:
 
 > No features tracker found for **<PROJECT>**. Either:
@@ -64,7 +67,7 @@ they want detail on that specific feature, not a triage. Read its
 context doc from the DB:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/context/1"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/context/1
 ```
 
 A `200` gives a JSON object with a `sections` array of
@@ -123,7 +126,7 @@ Pick up to **5 candidates** to read in detail:
 For each candidate, read its context doc from the DB:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/context/1"
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/context/1
 ```
 
 A `404` means no context doc — fall back to

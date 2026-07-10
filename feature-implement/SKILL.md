@@ -26,7 +26,10 @@ Wait for their response. If they say no, stop here.
 ## Step 0: Read the plan
 
 Resolve `PROJECT` once: `PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")`.
-`$ARGUMENTS` is the feature name (FEATURE).
+`$ARGUMENTS` is the feature name (FEATURE). Resolve the bundled `webapp`
+helper once too (see `docs/webapp-helper.md`); `BASE` is this skill's base
+directory, shown at the top of the invocation:
+`WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"`.
 
 Locate and read the plan, in this order of preference:
 
@@ -34,7 +37,7 @@ Locate and read the plan, in this order of preference:
    local webapp. This is the canonical location when the plan was
    authored via the API.
    ```bash
-   curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1"
+   "$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1
    ```
    A `200` response gives a JSON object with a `sections` array of
    `{"key": "...", "body": "..."}` objects.
@@ -169,7 +172,7 @@ sections back:
 
 1. GET current plan:
    ```bash
-   PLAN_JSON=$(curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1")
+   PLAN_JSON=$("$WEBAPP" get /api/documents/$PROJECT/$FEATURE/plan/1)
    ```
 
 2. In the `checklist` section body, change the matching item:
@@ -187,10 +190,9 @@ sections back:
    `sections` must be a JSON **object keyed by section key** — NOT an
    array like the GET response returns.
    ```bash
-   curl -fsS -X PUT \
-     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1" \
-     -H 'Content-Type: application/json' \
-     -d '{"sections": {"overview": "...", "checklist": "...", "phase-1": "..."}, "actor": "agent"}'
+   BODY=$(mktemp)
+   printf '%s' '{"sections": {"overview": "...", "checklist": "...", "phase-1": "..."}, "actor": "agent"}' > "$BODY"
+   "$WEBAPP" put /api/documents/$PROJECT/$FEATURE/plan/1 "$BODY"
    ```
 
 **HTML plan file** (legacy — only when the plan was read from the

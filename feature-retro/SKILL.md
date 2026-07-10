@@ -60,7 +60,10 @@ phase worktree — the latter being the normal state right after
 `feature-implement` finishes; `--path-format=absolute` matters, because from
 the main checkout `--git-common-dir` returns the relative `.git` and without
 it `PROJECT` resolves to `.`) and take
-`FEATURE` from `$ARGUMENTS` (ask if absent). Then look at:
+`FEATURE` from `$ARGUMENTS` (ask if absent). Resolve the bundled `webapp`
+helper too (see `docs/webapp-helper.md`):
+`WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"` where `BASE` is this
+skill's base directory, shown at the top of the invocation. Then look at:
 
 - Plan: `GET http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/plan/1`
   from the webapp. Fall back to
@@ -151,9 +154,9 @@ not just the one hosting it. List the feature's documents, then pull
 each relevant instance's synthesis:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/api/projects/$PROJECT/features/$FEATURE/documents" 2>/dev/null
+"$WEBAPP" get /api/projects/$PROJECT/features/$FEATURE/documents 2>/dev/null
 # then, per doc_type/instance that had a synthesis round this cycle:
-curl -fsS "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/<instance>/synthesis" 2>/dev/null
+"$WEBAPP" get /api/documents/$PROJECT/$FEATURE/<doc_type>/<instance>/synthesis 2>/dev/null
 ```
 
 Each call returns `responses` and `routine_flags`, keyed by item id — a
@@ -196,7 +199,7 @@ to the webapp (`404`), skip silently and run the retro exactly as before
 project's still-open findings:
 
 ```bash
-curl -fsS "http://127.0.0.1:8800/retro-findings?project=$PROJECT" 2>/dev/null
+"$WEBAPP" get "/retro-findings?project=$PROJECT" 2>/dev/null
 ```
 
 This returns the `open` + `deferred` findings, each with an **`id`**,
@@ -237,9 +240,7 @@ other's payload mid-write, and would linger in `/tmp` afterward:
 ```bash
 PAYLOAD=$(mktemp /tmp/retro-findings.XXXXXX.json)
 # …write the JSON body (below) to "$PAYLOAD"…
-curl -fsS -X POST -H 'Content-Type: application/json' \
-  -d @"$PAYLOAD" \
-  http://127.0.0.1:8800/retro-findings 2>/dev/null || true
+"$WEBAPP" post /retro-findings "$PAYLOAD" 2>/dev/null || true
 rm -f "$PAYLOAD"
 ```
 

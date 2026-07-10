@@ -10,58 +10,36 @@ For docs authored via the logical-key API (`PUT /api/documents/...`):
 1. **No force-walk needed** — docs authored via the API are immediately
    indexed in the DB. There is no need to POST to `/admin/discover`.
 
-2. **Wait for submission** — issue a single held-connection call that
-   returns as soon as the human submits (or after a bounded timeout):
+2. **Wait for submission** — use the bundled helper's `wait` verb (resolve
+   `$WEBAPP` per `docs/webapp-helper.md`). It long-polls the endpoint and
+   re-issues internally across the server's holds until the human submits or
+   the deadline passes, so an arbitrarily long wait costs a **single**
+   (backgroundable) invocation — not one agent turn per server hold. Run it in
+   the background; you're notified when it returns.
    ```bash
-   curl -fsS \
-     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis/wait"
+   "$WEBAPP" wait \
+     /api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis/wait --deadline 1800
    ```
    | Result | Action |
    |--------|--------|
-   | `curl` error (server unreachable) | Fall back to short poll (see below) |
-   | `404` | Doc not found — check the PUT succeeded |
-   | `200 submitted=true` | Consume `responses` / `routine_flags` |
-   | `200 submitted=false` | Timeout elapsed — re-issue per the reconnect schedule below |
+   | helper exits non-zero (server unreachable) | Fall back to short poll (see below) |
+   | `submitted=true` | Consume `responses` / `routine_flags` |
+   | `submitted=false` | Deadline (`--deadline`, default 1800 s) elapsed with no submission — reconnect with another `wait`, or hand back: *"I'll pick up your feedback when you submit — ping me."* |
 
-   On a clean `submitted=false` timeout, follow this **deterministic
-   reconnect schedule** — silently, with no status message — rather than
-   reconnecting forever. The endpoint holds for up to ~240 s (about four
-   minutes) before returning, so each reconnect lands cache-warm.
+   `wait` absorbs the reconnect/backoff internally and bounds the total at
+   `--deadline`, so there is **no hand-rolled reconnect schedule to run** — the
+   helper is what turned the old "one turn per ~25 s hold" burn into one call.
+   If the developer is plainly away, pass a shorter `--deadline` and hand back
+   sooner rather than holding the full window.
 
-   1. **Active phase (first ~3 empty holds, ~12 min).** On a clean
-      `submitted=false` timeout, re-issue the wait call immediately. This
-      keeps coverage tight and cache-warm while the developer is most
-      likely reviewing.
-   2. **Backoff phase (after ~3 empty holds).** Stop tight reconnecting —
-      you are past the cache window, so amortise with longer sleeps.
-      Use `ScheduleWakeup` at widening delays (e.g. 15 min, then 30 min)
-      and re-issue the wait call on each wake.
-   3. **Hard stop (~30–45 min total with no submission).** Stop waiting
-      and hand back to the developer with a one-line message such as
-      *"I'll pick up your feedback when you submit — ping me."* A concrete
-      bound is the point: it removes the wide variance in how long agents
-      hold.
-
-   **Why this shape.** Reconnecting every ~25 s (the old hold length)
-   spends a full agent turn each time, so an unbounded loop burns tokens
-   with no deterministic stop — some agents gave up in a minute, others
-   held 15+ minutes. A ~240 s hold plus this schedule keeps the active
-   phase cheap (each reconnect is cache-warm), amortises the tail with
-   `ScheduleWakeup`, and bounds total waiting to a known ceiling.
-
-   No time-of-day gating is applied — the schedule is purely elapsed-time
-   based.
-
-3. **Short-poll fallback** — if the wait call errors or the server is
-   unreachable, fall back to polling every 5 s using the existing read
-   endpoint:
+3. **Short-poll fallback** — if `wait` errors (server unreachable), fall back
+   to polling the read endpoint every 5 s:
    ```bash
-   curl -fsS \
-     "http://127.0.0.1:8800/api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis"
+   "$WEBAPP" get /api/documents/$PROJECT/$FEATURE/<doc_type>/$N/synthesis
    ```
    | Result | Action |
    |--------|--------|
-   | `curl` error (server unreachable) | Retry after 5 s |
+   | helper exits non-zero (server unreachable) | Retry after 5 s |
    | `404` | Doc not found — check that the PUT succeeded |
    | `200 submitted=false` | Awaiting the human — sleep 5, retry |
    | `200 submitted=true` | Consume `responses` / `routine_flags` |
@@ -75,16 +53,16 @@ and 404s forever. Use `$HOME`, which expands inside the quoted URL:
 
 1. **Force-walk** — trigger the walker so the doc is indexed immediately:
    ```bash
-   curl -fsS -X POST http://127.0.0.1:8800/admin/discover >/dev/null 2>&1 || true
+   "$WEBAPP" post /admin/discover /dev/null >/dev/null 2>&1 || true
    ```
 
 2. **Poll every 5 s**:
    ```bash
-   curl -fsS "http://127.0.0.1:8800/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/<doc>.html"
+   "$WEBAPP" get "/synthesis-response?path=$HOME/.claude/feature-docs/<PROJECT>/<FEATURE>/<doc>.html"
    ```
    | Result | Action |
    |--------|--------|
-   | `curl` error (server unreachable) | Fall back to clipboard |
+   | helper exits non-zero (server unreachable) | Fall back to clipboard |
    | `404` | Not yet indexed — sleep 5, retry |
    | `200 submitted=false` | Awaiting the human — sleep 5, retry |
    | `200 submitted=true` | Consume `responses` / `routine_flags` |
