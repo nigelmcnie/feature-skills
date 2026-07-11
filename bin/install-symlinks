@@ -13,7 +13,7 @@ mkdir -p "$SKILLS_DIR" "$BIN_DIR"
 
 for skill in feature feature-requirements feature-plan feature-implement \
              feature-context feature-choice feature-review feature-mr-feedback \
-             feature-iterate feature-ship feature-qa feature-retro; do
+             feature-iterate feature-ship feature-qa feature-retro document-archive; do
     src="$REPO_DIR/$skill"
     dst="$SKILLS_DIR/$skill"
 
