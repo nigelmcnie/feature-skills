@@ -105,8 +105,9 @@ class TestSuggestedOrder:
         avail_idx = lines.index("## Available")
         parked_idx = lines.index("## Parked")
         order_lines = [
-            i for i, l in enumerate(lines)
-            if "feat-b" in l and avail_idx < i < parked_idx and not l.startswith("|")
+            i
+            for i, line in enumerate(lines)
+            if "feat-b" in line and avail_idx < i < parked_idx and not line.startswith("|")
         ]
         assert len(order_lines) > 0
 
@@ -120,8 +121,9 @@ class TestSuggestedOrder:
         avail_idx = lines.index("## Available")
         done_idx = lines.index("## Done")
         order_lines = [
-            i for i, l in enumerate(lines)
-            if "feat-b" in l and avail_idx < i < done_idx and not l.startswith("|")
+            i
+            for i, line in enumerate(lines)
+            if "feat-b" in line and avail_idx < i < done_idx and not line.startswith("|")
         ]
         assert len(order_lines) > 0
 
@@ -132,7 +134,7 @@ class TestSuggestedOrder:
         assert "## Suggested order" in lines
         heading_idx = lines.index("## Suggested order")
         # First non-empty line after the heading is the body text
-        body_lines = [l for l in lines[heading_idx + 1:] if l.strip()]
+        body_lines = [line for line in lines[heading_idx + 1 :] if line.strip()]
         assert body_lines[0] == "feat-b"
 
     def test_no_suggested_order_when_none(self):
@@ -156,46 +158,79 @@ class TestSuggestedOrder:
         avail_idx = lines.index("## Available")
         done_idx = lines.index("## Done")
         # "feat-x" appears as table row AND in suggested_order text
-        all_feat_x = [i for i, l in enumerate(lines) if "feat-x" in l]
+        all_feat_x = [i for i, line in enumerate(lines) if "feat-x" in line]
         assert len(all_feat_x) >= 2
         # The non-table occurrence is between Available and Done
-        non_table = [i for i in all_feat_x if avail_idx < i < done_idx and not lines[i].startswith("|")]
+        non_table = [
+            i for i in all_feat_x if avail_idx < i < done_idx and not lines[i].startswith("|")
+        ]
         assert len(non_table) > 0
 
 
 # ---------------------------------------------------------------------------
-# Archived features excluded
+# Archived section
 # ---------------------------------------------------------------------------
 
 
-class TestArchivedExcluded:
-    """archived status must never appear in the rendered output."""
+class TestArchivedSection:
+    """archived features render in a dedicated '## Archived' section."""
 
-    def test_archived_feature_not_in_output(self):
+    def test_full_metadata_reason_linked_superseded_by_and_note(self):
         feats = [
             _feat("feat-b", "available"),
-            _feat("feat-z", "archived"),
+            _feat(
+                "feat-z",
+                "archived",
+                reason="duplicate",
+                superseded_by="feat-b",
+                note="see feat-b instead",
+                archived_at="2024-06-01T00:00:00+00:00",
+            ),
         ]
         result = _render_features_md(feats, None)
-        assert "feat-z" not in result
+        assert "## Archived" in result
+        assert "| Feature | Reason | Superseded by | Note |" in result
+        assert "duplicate" in result
+        assert "[feat-b](docs/features/feat-b/context.md)" in result
+        assert "see feat-b instead" in result
 
-    def test_archived_only_features_produces_empty_output(self):
+    def test_non_resolving_superseded_by_rendered_as_text(self):
+        feats = [
+            _feat(
+                "feat-z",
+                "archived",
+                reason="duplicate",
+                superseded_by="no-such-feature",
+                archived_at="2024-06-01T00:00:00+00:00",
+            ),
+        ]
+        result = _render_features_md(feats, None)
+        assert "no-such-feature" in result
+        assert "[no-such-feature]" not in result
+
+    def test_null_metadata_renders_empty_cells_without_crash(self):
         feats = [_feat("feat-z", "archived")]
         result = _render_features_md(feats, None)
-        assert "feat-z" not in result
-        # Should still end with a newline (or be empty)
-        assert result == "\n" or result == ""
+        assert "## Archived" in result
+        assert "feat-z" in result
 
-    def test_archived_alongside_active_does_not_leak(self):
+    def test_archived_section_after_done_rows_newest_first(self):
         feats = [
-            _feat("feat-a", "in_progress", owner="alice"),
-            _feat("feat-z1", "archived"),
-            _feat("feat-z2", "archived"),
+            _feat("feat-d", "done"),
+            _feat("feat-older", "archived", archived_at="2024-01-01T00:00:00+00:00"),
+            _feat("feat-newer", "archived", archived_at="2024-06-01T00:00:00+00:00"),
         ]
         result = _render_features_md(feats, None)
-        assert "feat-z1" not in result
-        assert "feat-z2" not in result
-        assert "feat-a" in result
+        lines = result.splitlines()
+        done_idx = lines.index("## Done")
+        archived_idx = lines.index("## Archived")
+        assert done_idx < archived_idx
+        assert result.index("feat-newer") < result.index("feat-older")
+
+    def test_no_archived_features_no_archived_heading(self):
+        feats = [_feat("feat-b", "available")]
+        result = _render_features_md(feats, None)
+        assert "## Archived" not in result
 
 
 # ---------------------------------------------------------------------------

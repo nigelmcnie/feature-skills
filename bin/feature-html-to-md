@@ -394,12 +394,13 @@ def _api_get(url: str) -> dict:
 # ---------------------------------------------------------------------------
 
 _STATUS_SECTIONS = {"In Progress", "Available", "Parked", "Done"}
-_STATUS_SECTIONS_ORDER = ["In Progress", "Available", "Parked", "Done"]
+_STATUS_SECTIONS_ORDER = ["In Progress", "Available", "Parked", "Done", "Archived"]
 _SECTION_TO_STATUS = {
     "In Progress": "in_progress",
     "Available": "available",
     "Parked": "parked",
     "Done": "done",
+    "Archived": "archived",
 }
 _STATUS_TO_SECTION = {v: k for k, v in _SECTION_TO_STATUS.items()}
 
@@ -549,9 +550,9 @@ def _build_section_block(h: str, blk: dict, all_rows: dict, db_features: dict,
 def _render_features_md(db_features: list[dict], suggested_order: str | None) -> str:
     """Render features.md from DB state. Deterministic: same DB state → identical output.
 
-    Sections appear in fixed order: In Progress / Available / Parked / Done.
-    Archived features are excluded. suggested_order text is inserted verbatim
-    after the Available section (before Parked / Done).
+    Sections appear in fixed order: In Progress / Available / Parked / Done / Archived.
+    suggested_order text is inserted verbatim after the Available section
+    (before Parked / Done / Archived).
     """
     by_section: dict[str, list[dict]] = {s: [] for s in _STATUS_SECTIONS_ORDER}
     for feat in db_features:
@@ -581,13 +582,29 @@ def _render_features_md(db_features: list[dict], suggested_order: str | None) ->
                 lc = _link_cell(feat["slug"], None)
                 notes = (feat.get("notes") or "").replace("|", "\\|")
                 out.append(f"| {lc} | {notes} |\n")
-        else:  # Done
+        elif h == "Done":
             out.append("| Feature | Outcome |\n")
             out.append("|---|---|\n")
             for feat in feats:
                 lc = _link_cell(feat["slug"], None)
                 outcome = (feat.get("notes") or "Shipped.").replace("|", "\\|")
                 out.append(f"| {lc} | {outcome} |\n")
+        elif h == "Archived":
+            out.append("| Feature | Reason | Superseded by | Note |\n")
+            out.append("|---|---|---|---|\n")
+            slugs = {f["slug"] for f in db_features}
+            feats = sorted(feats, key=lambda f: (f.get("archived_at") or ""), reverse=True)
+            for feat in feats:
+                lc = _link_cell(feat["slug"], None)
+                reason = (feat.get("reason") or "").replace("|", "\\|")
+                sb = feat.get("superseded_by") or ""
+                sb_cell = (
+                    f"[{sb}](docs/features/{sb}/context.md)"
+                    if sb in slugs
+                    else sb.replace("|", "\\|")
+                )
+                note = (feat.get("note") or "").replace("|", "\\|")
+                out.append(f"| {lc} | {reason} | {sb_cell} | {note} |\n")
         out.append("\n")
 
         # suggested_order text goes verbatim after the Available section,
