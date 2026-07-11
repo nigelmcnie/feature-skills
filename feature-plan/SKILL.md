@@ -161,6 +161,15 @@ A good implementation plan contains:
   (a project may have a `make check` that runs only a handful of tests
   while `make test` is the real suite). Prefer commands that fail loudly
   when the feature is absent over prose like "run the tests".
+  **Every verification step must resolve to either a runnable command or a
+  test named in that phase's test breakdown** — never an "the equivalent is
+  asserted by `<test>`" hand-wave that points at a test the plan doesn't
+  actually list. That phrasing reads to the implementing agent as "already
+  covered", so it ticks the step and the MR claims it done while the test
+  was never written (a self-certification gap a later review then has to
+  catch). If a check is worth verifying, list the test that proves it in the
+  phase's tests, or give the command; don't reference a test that isn't in
+  the plan.
   If a verification step needs live credentials or interactive auth, note
   it inline as **attempt-first**, not skip: `(Note: needs live credentials
   — attempt it; when the developer is present their credential store
