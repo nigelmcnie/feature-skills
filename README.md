@@ -19,13 +19,13 @@ workflow: requirements → plan → implement → review → iterate.
 | `feature-iterate` | Address feature-skills synthesis feedback after a full feature has merged |
 | `feature-ship` | Re-verify the merged state on `main` and mark the feature Done |
 | `feature-retro` | Retro on how the *process* went; surface workflow improvements |
-| `document-archive` | Archive/unarchive a single feature-workflow document via the webapp API, instead of hand-editing the database |
+| `feature-api` | Points at the webapp's self-describing `/openapi.json` and `bin/webapp` helper — loads whenever a session is working with feature-workflow documents or the tracker |
 
 Most skills set `disable-model-invocation: true` and are invoked via slash
 commands (`/feature-plan`, etc.). `feature-context`, `feature-choice`, and
-`document-archive` are the exceptions — they're auto-invokable when the user
-asks to capture an idea, pick what to work on next, or archive/unarchive a
-document.
+`feature-api` are the exceptions — they're auto-invokable when the user asks
+to capture an idea, pick what to work on next, or otherwise touch a
+feature's docs or the tracker.
 
 ## Install
 
