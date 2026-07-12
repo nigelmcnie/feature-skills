@@ -47,15 +47,7 @@ Do not silently switch branches — uncommitted work might be lost.
 
 ## Step 1: Establish the feature name
 
-If `$ARGUMENTS` names a feature from the Available section of `features.md`
-(if the project has one), read its description and use `$ARGUMENTS` as the
-feature name. If `$ARGUMENTS` is empty or names something not in the tracker,
-ask the user to describe what they want in a few sentences. In either case,
-confirm the feature name with the user before proceeding. Store this
-confirmed name — call it FEATURE — and use it for all file paths. Do not
-use `$ARGUMENTS` directly in paths in case the user confirms a different name.
-
-Also resolve PROJECT once and reuse it everywhere, plus the bundled `webapp`
+First resolve PROJECT once and reuse it everywhere, plus the bundled `webapp`
 helper (see `docs/webapp-helper.md`); `BASE` is this skill's base directory,
 shown at the top of the invocation:
 
@@ -63,6 +55,30 @@ shown at the top of the invocation:
 PROJECT=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 WEBAPP="$(dirname "$(readlink -f "BASE")")/bin/webapp"
 ```
+
+Now establish the feature. The **webapp is canonical** for whether a feature
+already exists — `features.md` is only an exported snapshot and may lag, so a
+feature can exist in the webapp (captured via the API) with no tracker row yet.
+Do not use `features.md` alone to decide a feature is uncaptured.
+
+- If `$ARGUMENTS` is provided, check the webapp first:
+
+  ```bash
+  "$WEBAPP" get /api/projects/$PROJECT/features/$ARGUMENTS 2>/dev/null
+  ```
+
+  A 200 means the feature already exists and was captured — use `$ARGUMENTS`
+  as the feature name and read its context in Step 3, rather than eliciting a
+  fresh description. Its `notes`, plus the Available section of `features.md`
+  if present, give the description.
+- Only if `$ARGUMENTS` is empty, or names a feature that exists in **neither**
+  the webapp nor the `features.md` tracker, ask the user to describe what they
+  want in a few sentences.
+
+In either case, confirm the feature name with the user before proceeding.
+Store this confirmed name — call it FEATURE — and use it for all file paths.
+Do not use `$ARGUMENTS` directly in paths in case the user confirms a
+different name.
 
 Once FEATURE is confirmed, tell the user:
 
