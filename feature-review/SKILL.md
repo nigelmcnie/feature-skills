@@ -13,9 +13,9 @@ not a branch in progress. Review happens after all phase MRs have landed.
 
 ## Model check
 
-Check your system context for the model you are running on. If your model name does not contain "opus", warn the user:
+Check your system context for the model you are running on. Opus-tier or above is expected here. If your model name contains neither "opus" nor "fable", warn the user:
 
-> ⚠️ This skill expects Claude Opus. You appear to be on [model name]. Opus is recommended here for stronger reasoning during review. Continue anyway?
+> ⚠️ This skill expects an Opus-tier or stronger model. You appear to be on [model name]. A stronger model is recommended here for reasoning during review. Continue anyway?
 
 Wait for their response. If they say no, stop here.
 
