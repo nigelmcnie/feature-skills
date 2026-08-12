@@ -1,7 +1,6 @@
 ---
 name: feature-mr-feedback
 description: Triage and respond to native platform review comments (automated bot findings and human replies) on an already-open, not-yet-merged feature-phase MR/PR. Use when the user says there's review feedback on a specific open MR/PR to address. Distinct from feature-iterate, which handles the feature-skills synthesis-driven review loop after a full feature has already merged.
-disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 argument-hint: "[feature-name] [mr-or-pr-reference]"
 ---
@@ -25,6 +24,12 @@ thread — and pushes the fix to that **same** branch, landing on the
 This can run at any point after `/feature-implement` created the MR —
 including long after that session went idle or ended. Nothing here
 assumes the phase's worktree still exists.
+
+Unlike its sibling feature skills, this one has no `disable-model-invocation`
+— it never spawns a subagent (no step here uses the Agent tool), so there's
+no risk of the subagent-spawning-a-subagent problem that flag exists to
+prevent. Plain language matching the description above (e.g. "there's
+feedback on the MR, go handle it") should trigger it directly.
 
 ## Model check
 
@@ -78,8 +83,12 @@ that already has commits and an open MR, not starting a phase.
   git worktree add .claude/worktrees/<name> <branch>
   # then call EnterWorktree with path=.claude/worktrees/<name>
   ```
-- Once in the worktree, pull the branch in case commits landed elsewhere
-  since: `git pull`.
+- Once in the worktree, update from the remote in case commits landed
+  elsewhere since — `git fetch origin && git merge --ff-only origin/<branch>`,
+  never a bare `git pull` (worktrees are typically shared across agents, and
+  `pull`'s rebase can refuse on a dirty index left elsewhere; fetch + ff-merge
+  fast-forwards without touching anything else). If the merge isn't a
+  fast-forward, stop and tell the user rather than force-merging.
 - If worktrees are unavailable (not a git repo, or the user vetoes
   isolation), fall back to `git checkout <branch>` in the current tree and
   tell them you're not isolated.
@@ -128,7 +137,12 @@ Beyond that:
 - **Human-only thread from someone other than the developer** (a
   teammate, another reviewer): treat as you would any human reviewer
   comment on your own PRs generally — evaluate on merits, defer to the
-  developer only where they've also weighed in on the same thread.
+  developer only where they've also weighed in on the same thread. The
+  developer's stance doesn't have to be a reply posted on the thread itself
+  — if they've told you their take in the conversation that invoked this
+  skill (e.g. "I agree with Richard, but do X instead"), that counts the
+  same as a posted reply for classification purposes: act on their version,
+  not the reviewer's original wording.
 
 ## Step 4: Act
 
@@ -175,11 +189,16 @@ them (capped at 3 attempts), escalate strategic failures, don't hang past
 
 ## Step 8: Report back
 
-Tell the user, concisely:
+Before writing the message, check: does this MR carry a known constraint —
+a not-ready-to-merge banner, a gate outstanding, a "don't merge yet" the
+user stated earlier? If so, **restate it explicitly in this report**, even
+if nothing about it changed this round and even within the same session —
+it's the easiest thing to drop once the thread-by-thread detail takes over,
+and a clean pipeline reads as "ready" if you don't say otherwise.
 
+Then tell the user, concisely:
+
+- Any standing constraint restated per above.
 - Which threads were addressed, and how (one line each).
 - Which threads are still open and need their own word, and why.
 - Final pipeline state, with the MR/PR link.
-- Restate any standing constraint on this MR/PR if the user mentioned one
-  when invoking this skill (e.g. "don't merge yet — waiting on X") — it's
-  easy for that context to get lost across a session boundary.
